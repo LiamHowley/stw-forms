@@ -91,4 +91,11 @@
    :form-class
    :form-layer
    :define-form
-   :render-template))
+   :render-template
+   :validate-form
+   :validate-fields
+   :validate-field
+   :validate-form-error
+   :validate-field-error
+   :signal-convert
+   :store-slot))
