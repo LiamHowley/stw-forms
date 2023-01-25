@@ -5,9 +5,11 @@
    :stw.util
    :map-tree-depth-first
    :awhen
+   :aif
    :self
    :ensure-list
-   :ensure-string)
+   :ensure-string
+   :get-float)
   (:import-from
    :closer-mop
    :slot-definition-name
@@ -20,7 +22,13 @@
    :define-layered-class
    :deflayer
    :with-active-layers
-   :partial-class-base-initargs)
+   :call-next-layered-method
+   :partial-class-base-initargs
+   :singleton-class)
+  (:import-from
+   :cl-ppcre
+   :scan
+   :scan-to-strings)
   (:import-from
    :cl-comp
    :slot-definition-class
@@ -28,14 +36,20 @@
    :serialize
    :define-base-class
    :map-filtered-slots
-   :initialize-in-context)
+   :filter-slots-by-type
+   :find-slot-definition
+   :initialize-in-context
+   :object-to-plist)
   (:import-from
    :xml.parse
    :branch-node
    :child-nodes
+   :the-content
    :*indent*
    :indent-string
-   :serialize-object)
+   :serialize-object
+   :query-select
+   :query-select-all)
   (:import-from
    :html.parse
    :serialize-object
@@ -45,8 +59,17 @@
    :html-parse-for
    :html-parse-value
    :html-parse-input-list
+   :html-parse-input-min
+   :html-parse-input-max
    :html-parse-name
    :html-parse-multiple
+   :html-parse-disabled
+   :html-parse-required
+   :html-parse-pattern
+   :html-parse-value
+   :html-parse-minlength
+   :html-parse-maxlength
+   :html-parse-checked
    :input-type
    :div
    :form
@@ -56,8 +79,16 @@
    :text-node)
   (:import-from
    :sanitize
-   :clean
-   :+default+)
+   :sanitize
+   :text-only)
+  (:import-from
+   :local-time
+   :timestamp<=
+   :parse-timestring
+   :format-timestring
+   :+asctime-format+)
   (:export
    :form-class
-   :form-layer))
+   :form-layer
+   :define-form
+   :render-template))

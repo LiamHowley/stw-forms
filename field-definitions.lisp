@@ -1,48 +1,87 @@
 (in-package stw.form)
 
+;;; mixins
+
+(defclass field! ()
+  ((parent-field :initarg :parent-field)))
+
 (defclass error! ()
   ((error-msg :initarg :error-msg
 	      :initform nil)))
 
 (defclass sanitize! ()
   ((sanitize :initarg :sanitize
-	     :initform +default+)))
+	     :initform (find-class 'text-only))))
 
-(defclass input (html.parse:input sanitize! error!)
+(defclass text! () ())
+
+;;; fields types 
+
+(defmacro define-field (name &body body)
+  (let ((supers (car body))
+	(rest (cdr body)))
+    `(progn
+       (defclass ,name ,supers ())
+       (defmethod initialize-instance :after ((field ,name) &key)
+	 (with-slots (input-type) field
+	   (setf input-type (format nil "~(~a~)" (class-name (class-of field))))
+	   ,@rest)))))
+
+(defclass input (html.parse:input sanitize! error! field!) ())
+
+(define-field text (input text!) ())
+
+(define-field password (text) ())
+
+(define-field email (text) ())
+
+(define-field url (text) ())
+
+(define-field tel (text) ())
+
+(define-field submit (input) ())
+
+(define-field button (submit) ())
+
+(define-field number-field (input)
+  (setf input-type "number"))
+
+(define-field color (input) ())
+
+(define-field date (input) ())
+
+(define-field datetime-local (date) ())
+
+(define-field time-field (datetime-local)
+  (setf input-type "time"))
+
+(define-field checkbox (input) ())
+
+(define-field radio (checkbox) ())
+
+(define-field file (input) ())
+
+(defclass dropdown (sanitize! error! field!)
   ())
 
-(defclass password (input) ())
-
-(defclass submit (input) ())
-
-(defclass number-field (input) ())
-
-(defclass checkbox (input) ())
-
-(defclass radio (checkbox) ())
-
-(defclass file (input) ())
-
-(defclass dropdown (sanitize! error!)
-  ((options
-    :initarg :options
-    :accessor dropdown-options
-    :documentation "Options is for use in datalist and select fields, 
-to allow for a rendering key that matches the initarg of a slot of type 
-FORM-SLOT-DEFINITION")))
-
-(defclass select (html.parse:select dropdown)
+(defclass select (html.parse:select dropdown field!)
   ())
 
-(defclass datalist (html.parse:select dropdown)
+(defclass datalist (html.parse:datalist dropdown field!)
   ())
 
-(defclass textarea (html.parse:textarea sanitize! error!) ())
+(defclass option (html.parse:option)
+  ((output :initarg :output :initform nil)))
+
+(defclass textarea (html.parse:textarea text! sanitize! error! field!) ())
 
 (defclass output (html.parse:output sanitize! error!) ())
 
 
 (defmethod xml.parse:class->element ((class input))
+  "input")
+
+(defmethod xml.parse:class->element ((class text))
   "input")
 
 (defmethod xml.parse:class->element ((class select))
@@ -51,33 +90,16 @@ FORM-SLOT-DEFINITION")))
 (defmethod xml.parse:class->element ((class datalist))
   "datalist")
 
+(defmethod xml.parse:class->element ((class textarea))
+  "textarea")
+
 (defmethod initialize-instance :after ((field input) &key)
   (with-slots (html-class input-type) field
     (unless input-type
       (setf input-type "text"))
     (setf html-class (append '("form-field" "input-field") html-class))))
 
-(defmethod initialize-instance :after ((field submit) &key)
-  (with-slots (id input-type) field
-    (setf input-type "submit")))
-
-(defmethod initialize-instance :after ((field checkbox) &key)
-  (with-slots (input-type) field
-    (setf input-type "checkbox")))
-
-(defmethod initialize-instance :after ((field radio) &key)
-  (with-slots (input-type) field
-    (setf input-type "radio")))
-
-(defmethod initialize-instance :after ((field file) &key)
-  (with-slots (input-type) field
-    (setf input-type "file")))
-
 (defmethod initialize-instance :after ((field select) &key multiple-valuep)
-  (when multiple-valuep
-    (setf (html-parse-multiple field) t)))
-
-(defmethod initialize-instance :after ((field datalist) &key multiple-valuep)
   (when multiple-valuep
     (setf (html-parse-multiple field) t)))
 

@@ -5,14 +5,21 @@
 	       "stw-xml-parse"
 	       "stw-html-parse"
 	       "stw-utils"
+	       "stw-sanitize"
 	       "closer-mop"
 	       "contextl"
 	       "cl-comp"
 	       "cl-ppcre"
-	       "sanitize"
+	       "local-time"
 	       "trivial-mimes")
   :serial t
   :components ((:file "package")
 	       (:file "field-definitions")
-	       (:file "meta")))
+	       (:file "conditions")
+	       (:file "meta")
+	       (:file "validate")))
+  :long-description
+  #.(uiop:read-file-string
+     (uiop:subpathname *load-pathname* "docs/README.org"))
+  :in-order-to ((test-op (load-op :stw-forms-test))))
 	       

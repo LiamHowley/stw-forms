@@ -33,14 +33,12 @@
     :initarg :accept
     :initarg :accept-charset)))
 
-
 (defmethod partial-class-base-initargs append ((class base-form-class))
   *base-form-class-initargs*)
 
-
 (defclass form-slot-definition (template-slot-definition)
-  ((sanitize :initarg :sanitize :initform +default+)
-   (fieldtype :initarg :fieldtype :initform 'input-field :reader slot-definition-fieldtype)
+  ((sanitize :initarg :sanitize :initform (find-class 'text-only))
+   (fieldtype :initarg :fieldtype :type symbol :initform 'text :reader slot-definition-fieldtype)
    (fields
     :initform nil
     :reader slot-definition-field-attributes
@@ -86,20 +84,38 @@
     :initarg :label
     :initarg :label-placement)))
 
-
 (defmethod slot-definition-class ((layer-metaclass form-context-class))
   'form-slot-definition)
+
+(defmethod slot-unbound ((class base-form-class) instance slot-name)
+  (let ((slot (find-slot-definition (class-of instance) slot-name 'form-slot-definition)))
+    (with-slots (fields fieldtype) slot
+      (let ((field
+	      (query-select fields
+			    #'(lambda (node)
+				(typep node fieldtype)))))
+	(when (and (slot-exists-p field 'required)
+		   (slot-value field 'required))
+	  (validate-field-error "~a is a required field" slot-name))
+	nil))))
+
 
 (define-layered-class form-class
   :in-layer form-layer (base-form-class template-class)
   ())
 
 
+(defclass error-fields ()
+  ((error-fields :initform nil
+		 :documentation "Errors are bound to the form-instance as form-fields and are typically cached."))
+  (:metaclass singleton-class))
 
-(defmacro define-form-class (name &body body)
+
+(defmacro define-form (name &body body)
   "Wrapper on DEFINE-BASE-CLASS."
   (unless (serialized-p (car body))
     (push 'serialize (car body)))
+  (push 'error-fields (car body))
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (define-base-class ,name
        :in form-layer
@@ -112,6 +128,28 @@
   (with-slots (template csrf) form
     (apply #'djula:render-template* template stream :csrf csrf args)))
 
+(define-layered-method render-template
+  :in form-layer
+  ((instance serialize)
+   &optional stream
+   (args (object-to-plist
+	  instance
+	  :map #'(lambda (object slot)
+		   (let ((slot-name (slot-definition-name slot)))
+		     (flet ((value ()
+			      (when (and (find-symbol (symbol-name slot-name))
+					 (slot-boundp object slot-name))
+				(slot-value object slot-name))))
+		       (typecase slot
+			 (form-slot-definition
+			  (let ((fieldtype (slot-value slot 'fieldtype)))
+			    (case fieldtype
+			      (datalist (retrieve-options object slot-name))
+			      (select (retrieve-options object slot-name :value (value)))
+			      (t (value)))))
+			 (t
+			  (value)))))))))
+  (render-template (class-of instance) stream args))
 
 (defun string->symbol (string)
   (intern (string-upcase string) 'stw.form))
@@ -136,14 +174,14 @@
 		 else 
 		   when (member key *form-slot-definition-initargs* :test #'eq)
 		     collect key
-		     and collect (ensure-string value))))
+		     and collect value)))
     (with-slots (fieldtype fields) slot
       (let* ((fieldclass-sym (typecase fieldtype
 			       (keyword (keyword->symbol fieldtype))
 			       (symbol fieldtype)
 			       (string (string->symbol fieldtype))))
 	     (field (make-instance fieldclass-sym
-				   ;; for datalist and select
+				   ;; for select
 				   :multiple-valuep (multiple-valuep slot) :allow-other-keys t)))
 	(setf fields (apply #'initialize-form-fields slot field rest*))))))
 
@@ -167,7 +205,8 @@
     (declare (ignore args))
     (make-instance 'field-container
 		   :class "form-field-container"
-		   :id (format nil "~(~a-~a~)" (slot-definition-name slot) (class-name (class-of field)))
+		   :parent-node slot
+		   :id (format nil "~(~a-~a~)-container" (slot-definition-name slot) (class-name (class-of field)))
 		   :child-nodes (call-next-method)))
 
   (:method
@@ -181,8 +220,8 @@
 			:ltr)))
 	  (slot-name (slot-definition-name slot)))
       (apply #'reinitialize-instance field
+	     :parent-field slot
 	     :allow-other-keys t
-	     :stw-reader nil
 	     args)
       (setf (html-class field) (ensure-list (html-class field))
 	    (html-parse-name field) (format nil "~(~a~)" slot-name))
@@ -195,7 +234,9 @@
 		  (format nil "~(~a-~a~)" slot-name (slot-definition-fieldtype slot)))))
       (let ((fields
 	      (if label
-		  (list label field)
+		  (list label (make-instance 'div
+					     :class "labelled-field"
+					     :child-nodes (list field)))
 		  (list field))))
 	(if (eq placement :ltr)
 	    fields
@@ -212,22 +253,44 @@
   (:method
       :in form-layer ((slot form-slot-definition) (field checkbox) &rest args &key &allow-other-keys)
     (declare (ignore args))
-    (prog1 (call-next-method)
+    (prog1 (list (make-instance 'div :class "checkbox-wrap" :child-nodes (call-next-method)))
       (setf (html-parse-value field) (format nil "~(~a~)" (car (slot-definition-initargs slot))))))
 
   (:method
+      :in form-layer ((slot form-slot-definition) (field textarea) &rest args &key &allow-other-keys)
+    (declare (ignore args))
+    (prog1 (call-next-method)
+      (setf (slot-value field 'the-content) (format nil "{{ ~(~a~) }}" (car (slot-definition-initargs slot))))))
+
+  (:method
       :in form-layer ((slot form-slot-definition) (field datalist) &rest args &key &allow-other-keys)
-    (let* ((name (format nil "~(~a~)" (slot-definition-name slot)))
-	   (input (apply #'call-next-method slot (make-instance 'input :name name) args)))
-      (setf (slot-value field 'options) (format nil "~(~a~)" (car (slot-definition-initargs slot))))
-      (list input (apply #'reinitialize-instance 'datalist :id (html-parse-input-list input) args))))
+    (let* ((input-class (aif (getf args :input-type)
+			     (find-class (intern (string-upcase self)))
+			     (find-class 'text)))
+	   (name (format nil "~(~a~)" (slot-definition-name slot)))
+	   (input (apply #'call-next-layered-method slot (make-instance input-class :name name) args)))
+      `(,@input ,(apply #'reinitialize-instance field 
+			:allow-other-keys t
+			:parent-field slot
+			:id (html-parse-input-list
+			     (query-select input
+					   #'(lambda (node)
+					       (typep node 'input))))
+			args))))
 
   (:method
       :in form-layer ((slot form-slot-definition) (field select) &rest args &key &allow-other-keys)
     (declare (ignore args))
     (prog1 (call-next-method)
-      (setf (slot-value field 'options) (format nil "~(~a~)" (car (slot-definition-initargs slot)))
-	    (html-parse-name field) (format nil "~(~a~)" (slot-definition-name slot))))))
+      (setf (html-parse-name field) (format nil "~(~a~)" (slot-definition-name slot))))))
+
+
+(define-layered-function retrieve-options (class slot-name &key value)
+  (:documentation "Retrieve the options for datalist and select fields.")
+  (:method
+      :in form-layer (class slot-name &key value)
+    (declare (ignore class slot-name value))
+    nil))
 
 
 (define-layered-method initialize-in-context
@@ -238,7 +301,7 @@
 		   collect key
 		   and collect (ensure-string value))))
     (awhen (apply #'asdf:system-relative-pathname template)
-      (let* ((form (apply #'make-instance 'form :stw-reader nil rest*))
+      (let* ((form (apply #'make-instance 'form rest*))
 	     (slots (map-filtered-slots class
 					#'(lambda (slot)
 					    (typep slot 'form-slot-definition))))
@@ -253,44 +316,63 @@
 	(setf (slot-value form 'child-nodes) child-nodes)
 	(with-open-file (stream self :direction :output :if-does-not-exist :create :if-exists :supersede)
 	  (let ((*indent* 0))
-	    (when  extends
+	    (when extends
 	      (format stream "{% extends ~a %}" extends))
 	    (serialize-object form stream *indent* t))))
       (let ((template (slot-value class 'template)))
 	(when (consp template)
-	  (setf (slot-value class 'template) self
-		(compiled-template class) template))))))
+	  (setf (slot-value class 'template) self)
+	  (compile-template class))))))
 
 
-
-(defun set-options (indent stream)
+(defun set-options (indent name stream)
   (indent-string indent stream)
-  (write-string "{% for option in options %}" stream)
+  (write-string "{% for option in " stream)
+  (write-string name stream)
+  (write-string " %}"stream)
   (indent-string indent stream)
   (write-string "<option value='{{ option.value }}' {{ option.disabled }}{{ option.selected }}>{{ option.output }}</option>" stream)
   (indent-string indent stream)
   (write-string "{% endfor %}" stream))
 
+
 (defmethod serialize-object :around ((object field-container) (stream stream) &optional indent include-children)
   (declare (ignore include-children))
-  (let ((select-p (some #'(lambda (child)
-			     (typep child 'select))
-			(slot-value object 'child-nodes))))
-    (cond (select-p
-	   (indent-string indent stream)
-	   (write-string "{% if options %}" stream)
-	   (call-next-method)
-	   (indent-string indent stream)
-	   (write-string "{% endif %}" stream))
+  (let ((select (query-select object #'(lambda (child)
+					  (typep child 'select)))))
+    (cond (select
+	   (let* ((parent-slot (slot-value select 'parent-field))
+		  (name (car (slot-definition-initargs parent-slot))))
+	     (indent-string indent stream)
+	     (write-string "{% if " stream)
+	     (format stream "~(~a~)" name)
+	     (write-string " %}" stream)
+	     (call-next-method)
+	     (indent-string indent stream)
+	     (write-string "{% endif %}" stream)))
 	  (t
 	   (call-next-method)))))
+
 
 (defmethod serialize-object ((object select) (stream stream) &optional indent include-children)
   (declare (ignore include-children))
   (write-char #\> stream)
-  (set-options (+ 3 indent) stream))
+  (let* ((parent-field (slot-value object 'parent-field))
+	 (name (format nil "~(~a~)" (car (slot-definition-initargs parent-field)))))
+    (set-options (+ 3 indent) name stream)))
 
 (defmethod serialize-object ((object datalist) (stream stream) &optional indent include-children)
   (declare (ignore include-children))
   (write-char #\> stream)
-  (set-options (+ 3 indent) stream))
+  (let* ((parent-field (slot-value object 'parent-field))
+	 (name (format nil "~(~a~)" (car (slot-definition-initargs parent-field)))))
+    (set-options (+ 3 indent) name stream)))
+
+(defmethod serialize-object ((object textarea) (stream stream) &optional indent include-children)
+  (declare (ignore include-children))
+  (write-char #\> stream)
+  (let ((text (slot-value object 'the-content)))
+    (when text
+      (write-string text stream)))
+  (indent-string indent stream)
+  (write-string "</textarea>" stream))
