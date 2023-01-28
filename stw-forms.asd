@@ -17,7 +17,7 @@
 	       (:file "field-definitions")
 	       (:file "conditions")
 	       (:file "meta")
-	       (:file "validate")))
+	       (:file "validate"))
   :long-description
   #.(uiop:read-file-string
      (uiop:subpathname *load-pathname* "docs/README.org"))
