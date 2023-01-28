@@ -142,19 +142,19 @@
 	  :map #'(lambda (object slot)
 		   (let ((slot-name (slot-definition-name slot)))
 		     (flet ((value ()
-			      (when (and (find-symbol (symbol-name slot-name))
-					 (slot-boundp object slot-name))
+			      (when (slot-boundp object slot-name)
 				(slot-value object slot-name))))
 		       (typecase slot
 			 (form-slot-definition
 			  (let ((fieldtype (slot-value slot 'fieldtype)))
 			    (case fieldtype
-			      (datalist (retrieve-options object slot-name))
-			      (select (retrieve-options object slot-name :value (value)))
+			      (datalist (retrieve-options (class-of object) slot-name))
+			      (select (retrieve-options (class-of object) slot-name :value (value)))
 			      (t (value)))))
 			 (t
 			  (value)))))))))
   (render-template (class-of instance) stream args))
+
 
 (defun string->symbol (string)
   (intern (string-upcase string) 'stw.form))
