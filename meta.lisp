@@ -20,11 +20,11 @@
   :in form-layer (base-template-class)
   ((csrf :initarg :csrf :initform nil :accessor csrf)
    (extends :initarg :extends :initform nil :accessor extends)
+   (novalidate :initarg :novalidate :initform nil :reader novalidate)
    (form-attributes
     :initform nil
     :reader form-class-attributes
     :initarg :name
-    :initarg :novalidate
     :initarg :action
     :initarg :method
     :initarg :enctype
@@ -51,7 +51,6 @@
     :initarg :min
     :initarg :max
     :initarg :size
-    :initarg :formnovalidate
     :initarg :required
     :initarg :maxlength
     :initarg :minlength

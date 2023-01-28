@@ -25,7 +25,7 @@
   (:documentation "VALIDATE-FORM is primarily concerned with verifying the requirement and equality of
 any CSRF token. It subsequently calls VALIDATE-FIELDS. As truncated forms may have been rendered
 the params INCLUDE-FIELDS and EXCLUDE-FIELDS are available to pass on to VALIDATE-FIELDS. Forms with
-errors will return a VALIDATE-FORM-ERROR condition."))
+errors will return a VALIDATE-FORM-ERROR condition. If a form slot NOVALIDATE is true, no value is returned."))
 
 (define-layered-function validate-fields (class values &key)
   (:documentation "VALIDATE-FIELDS processes each field in a loop after first testing for presence in 
@@ -46,14 +46,16 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 (define-layered-method validate-form
   :in-layer form-layer ((class base-form-class) values &key csrf-token include-fields exclude-fields)
-  (with-slots (csrf) class
-    (unless (string= csrf csrf-token)
-      (validate-form-error nil "The form ~a does not have a valid csrf token."
-			   (class-name class)))
-    (validate-fields class
-		     values
-		     :include-fields include-fields
-		     :exclude-fields exclude-fields)))
+  (with-slots (csrf novalidate) class
+    (if no-validate
+	(values)
+	(unless (string= csrf csrf-token)
+	  (validate-form-error nil "The form ~a does not have a valid csrf token."
+			       (class-name class)))
+	(validate-fields class
+			 values
+			 :include-fields include-fields
+			 :exclude-fields exclude-fields))))
 
 
 (define-layered-method validate-fields
