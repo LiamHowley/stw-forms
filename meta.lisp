@@ -300,14 +300,16 @@
 
 
 (define-layered-method initialize-in-context
-  :in form-layer ((class base-form-class) &rest rest &key template extends &allow-other-keys)
+  :in form-layer ((class base-form-class) &rest rest &key name template extends &allow-other-keys)
   (let ((rest* (loop
 		 for (key value) on rest by #'cddr
 		 when (member key (cddr *base-form-class-initargs*) :test #'eq)
 		   collect key
 		   and collect (ensure-string value))))
     (awhen (apply #'asdf:system-relative-pathname template)
-      (let* ((form (apply #'make-instance 'form rest*))
+      (let* ((form (apply #'make-instance 'form
+			  :name (format nil "~(~a~)" (if name name (class-name class)))
+			  rest*))
 	     (slots (map-filtered-slots class
 					#'(lambda (slot)
 					    (typep slot 'form-slot-definition))))
