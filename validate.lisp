@@ -35,7 +35,7 @@ Each call to VALIDATE-FIELD will result in an error or signal condition. Error's
 field's ERROR-MSG attribute, so that it can be returned along with the rendered field. If a field validates, 
 any bound error messages are cleared."))
 
-(define-layered-function validate-field (class value &key)
+(defgeneric validate-field (class value &key)
   (:documentation "VALIDATE-FIELD provides a condition STORE-SLOT for use when a fields state and value are 
 required by a subsequent field. An example would be for password renewal forms, where passwords provided must match.
 
@@ -151,8 +151,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 		       (char= char #\.))))
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field number-field) value &key)
+(defmethod validate-field ((field number-field) value &key)
   (with-accessors ((required html-parse-required)
 		   (input-name html-parse-name)
 		   (min-d html-parse-minlength)
@@ -181,8 +180,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field text!) value &key)
+(defmethod validate-field ((field text!) value &key)
   (with-slots (sanitize parent-field) field
     (with-accessors ((name html-parse-input-name)
 		     (required html-parse-required)
@@ -206,8 +204,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 ;; the whole string must match with or without ^ $. Validate field adjusts
 ;; any pattern to accommodate both quirks.
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field text) value &key)
+(defmethod validate-field ((field text) value &key)
   (with-slots (parent-field sanitize) field
     (call-next-method)
     (when value
@@ -219,8 +216,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
       (signal-convert (sanitize value sanitize)))))
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field email) value &key)
+(defmethod validate-field ((field email) value &key)
   (flet ((call-error ()
 	   (validate-field-error "The value ~s is not a valid email address" value)))
     (call-next-method)
@@ -259,8 +255,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 	    do (call-error))))))
 	
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field date) value &key)
+(defmethod validate-field ((field date) value &key)
   (unless (parse-timestring value :fail-on-error nil) 
     (validate-field-error "The value ~s is not a valid timestring." value))
   (with-accessors ((min-time html-parse-input-min)
@@ -279,20 +274,17 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 			      (format-timestring nil max-time :format +asctime-format+))))))
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field datetime-local) value &key)
+(defmethod validate-field ((field datetime-local) value &key)
   (call-next-layered-method field (concatenate 'string value "00")))
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field checkbox) value &key)
+(defmethod validate-field ((field checkbox) value &key)
   (awhen (html-parse-checked field)
     (unless (string-equal self value)
       (validate-field-error "The value ~s and the returned value ~s do not match." value self))))
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field select) value &key options)
+(defmethod validate-field ((field select) value &key options)
   (with-accessors ((input-name html-parse-input-name)
 		   (required html-parse-required)
 		   (multiple html-parse-multiple))
@@ -307,8 +299,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field file) value &key)
+(defmethod validate-field ((field file) value &key)
   (with-slots (accept files min-size max-size) field
     (when (and required (string= "" value))
       (validate-field-error "~s is a required field" input-name))
