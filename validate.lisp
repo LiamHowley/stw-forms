@@ -57,9 +57,9 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (define-layered-method validate-fields
-  :in-layer form-layer ((class base-form-class) values &key include-fields exclude-fields)
-  (let ((stored-fields nil)
-	(fields (retrieve-fields class
+  :in-layer form-layer ((class base-form-class) values &key include-fields exclude-fields &aux stored-fields)
+  (declare (special stored-fields))
+  (let ((fields (retrieve-fields class
 				 :include-fields include-fields 
 				 :exclude-fields exclude-fields))
 	(error-fields))
@@ -82,7 +82,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 				(setf (cdr (assoc fieldname values :test #'string-equal)) (value c))))
 			  (store-slot
 			    #'(lambda (c)
-				(push (cons (slot-name c) (stored-slot c)) stored-fields))))
+				(push (cons (fieldname c) (stored-value c)) stored-fields))))
 	     (unless (typep field 'submit)
 	       (if (html-parse-disabled field)
 		   (validate-form-error error-fields "Cannot validate form. Disabled fields returned")
@@ -319,38 +319,60 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field password) value &key stored-fields)
-  (with-slots (parent-field sanitize) field
+(defmethod validate-field ((field password) value &key)
+  (declare (special stored-fields))
+  (with-slots (parent-field sanitize rules) field
+    (requiredp field (html-parse-required field) value)
     (let ((fieldname (symbol-name (slot-definition-name parent-field))))
       (with-accessors ((minlength html-parse-minlength)
 		       (maxlength html-parse-maxlength))
 	  field
 	(cond ((string-equal fieldname "password")
-	       (requiredp field t value))
+	       (call-next-method))
 	      ((string-equal fieldname "new-password")
-	       (store-slot fieldname field)
-	       (when (and minlength
-			  (< (length value) minlength))
-		 (validate-field-error "Password must be at least ~a characters long" minlength))
-	       (when (and maxlength
-			  (> (length value) maxlength))
-		 (validate-field-error "Password must be less than ~a characters long" maxlength))
-	       (when (not (scan "[#\$!\^£€%*~@]" value))
-		 (validate-field-error "Password must contain at least one special character # $ ! ^ £ € % * ~~ @"))
-	       (when (not (scan "[0-9]" value))
-		 (validate-field-error "Password must contain at least one number."))
-	       (when (not (scan "[A-Z]" value))
-		 (validate-field-error "Password must contain at least one capital letter.")))
+	       (store-slot fieldname value)
+	       (validate-password-rules field value))
 	      ((string-equal fieldname "repeat-password")
-	       (let ((new-pass (cdr (assoc "NEW-PASSWORD" stored-fields :test #'string=))))
-		 (when (requiredp new-pass t value)
-		   (unless (string= value (slot-value new-pass 'value))
-		     (validate-field-error parent-field "passwords do not match"))))))
+	       (awhen (assoc "NEW-PASSWORD" stored-fields :test #'string=)
+		 (unless (string= value (cdr self))
+		   (validate-field-error parent-field "passwords do not match")))))
 	(when value
 	  (signal-convert (sanitize value sanitize)))))))
-;;
-;;
+
+
+
+(defmethod validate-password-rules ((field password) password)
+  (with-accessors ((minlength html-parse-minlength)
+		   (maxlength html-parse-maxlength))
+      field
+    (when (and minlength
+	       (< (length password) minlength))
+      (validate-field-error "Password must be at least ~a characters long" minlength))
+    (when (and maxlength
+	       (> (length password) maxlength))
+      (validate-field-error "Password must be less than ~a characters long" maxlength)))
+  (with-slots (special-chars use-numbers capitalize) field
+    (when (or special-chars use-numbers capitalize)
+      (let ((rules `(,(unless special-chars t)
+		     ,(unless use-numbers t)
+		     ,(unless capitalize t))))
+	(loop
+	  for char across password
+	  when (and special-chars
+		    (member char '(#\# #\$ #\! #\^ #\£ #\€ #\% #\* #\~ #\@) :test #'char=))
+	    do (setf (car rules) t)
+	  when (and use-numbers (digit-char-p char))
+	    do (setf (cadr rules) t)
+	  when (and capitalize (upper-case-p char))
+	    do (setf (caddr rules) t)
+	  finally (unless (car rules)
+		    (validate-field-error "Password must contain at least one special character # $ ! ^ £ € % * ~~ @"))
+		  (unless (cadr rules)
+		    (validate-field-error "Password must contain at least one number."))
+		  (unless (caddr rules)
+		    (validate-field-error "Password must contain at least one capital letter.")))))))
+
+	
 ;;
 ;;(define-layered-method validate-field
 ;;  :in-layer form-layer ((field checklist) &key value)

@@ -5,7 +5,7 @@
   `(:extends :csrf :novalidate :action :method :enctype :autocomplete :rel :accept-charset :name))
 
 (defvar *form-slot-definition-initargs*
-  `(:input-type :name :value :list :step :options :min :max :size :formnovalidate :required :maxlength :minlength :pattern :accept :file :multiple :readonly :disabled :accept :alt :autocomplete :autofocus :capture :checked :dirname :form :formaction :formenctype :formmethod :formnovalidate :formtarget :pattern :placeholder :usemap :width :height :for :label :label-placement))
+  `(:input-type :name :value :list :step :options :min :max :size :formnovalidate :required :maxlength :minlength :pattern :accept :file :multiple :readonly :disabled :accept :alt :autocomplete :autofocus :capture :checked :dirname :form :formaction :formenctype :formmethod :formnovalidate :formtarget :pattern :placeholder :usemap :width :height :for :label :label-placement :use-numbers :special-chars :capitalize))
 
 
 (defclass form-context-class (template-context-class)
@@ -79,6 +79,11 @@
     :initarg :usemap
     :initarg :width
     :initarg :height)
+   (rules
+    :documentation "Helper for validation of new passwords."
+    :initarg :special-chars
+    :initarg :use-numbers
+    :initarg :capitalize)
    (label
     :initarg :for
     :initarg :label
@@ -284,6 +289,7 @@
     (prog1 (call-next-method)
       (setf (html-parse-name field) (format nil "~(~a~)" (slot-definition-name slot))))))
 
+    
 
 (define-layered-function retrieve-options (class slot-name &key value)
   (:documentation "Retrieve the options for datalist and select fields.")

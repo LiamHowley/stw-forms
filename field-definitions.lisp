@@ -31,7 +31,10 @@
 
 (define-field text (input text!) ())
 
-(define-field password (text) ())
+(defclass password (text)
+  ((special-chars :initarg :special-chars :initform nil)
+   (use-numbers :initarg :use-numbers :initform nil)
+   (capitalize :initarg :capitalize :initform nil)))
 
 (define-field email (text) ())
 
@@ -60,6 +63,7 @@
 (define-field radio (checkbox) ())
 
 (define-field file (input) ())
+
 
 (defclass dropdown (sanitize! error! field!)
   ())
@@ -98,6 +102,9 @@
     (unless input-type
       (setf input-type "text"))
     (setf html-class (append '("form-field" "input-field") html-class))))
+
+(defmethod initialize-instance :after ((field password) &key)
+  (setf (slot-value field 'input-type) "password"))
 
 (defmethod initialize-instance :after ((field select) &key multiple-valuep)
   (when multiple-valuep

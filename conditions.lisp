@@ -12,6 +12,7 @@
 	  :format-arguments format-args))
 
 
+
 (define-condition validate-field-error (simple-error)())
 
 (defun validate-field-error (format-control &rest format-args)
@@ -21,21 +22,22 @@
 	  :format-arguments format-args))
 
 
+
 (define-condition signal-convert (simple-condition)
   ((value :initarg :value :reader value)))
 
 (define-condition store-slot (simple-condition)
-  ((slot-name :initarg :slot-name :reader slot-name)
-   (stored-slot :initarg :stored-slot :reader stored-slot)))
+  ((stored-value :initarg :stored-value :reader stored-value)
+   (fieldname :initarg :fieldname :reader fieldname)))
 
 (defun signal-convert (value)
   (signal 'signal-convert
 	  :value value))
 
-(defun store-slot (slot-name stored-slot)
+(defun store-slot (fieldname stored-value)
   (signal 'store-slot
-	  :slot-name slot-name 
-	  :stored-slot stored-slot))
+	  :stored-value stored-value 
+	  :fieldname fieldname))
 
 (defun the-message (c)
   (apply #'format nil (simple-condition-format-control c)
