@@ -72,10 +72,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
       do (with-slots (parent-field) field
 	   (handler-bind ((validate-field-error
 			    #'(lambda (c)
-				(let ((key (intern (format nil "~a-ERRORS" (slot-definition-name parent-field)) 'keyword)))
-				  (if (getf error-fields key)
-				      (pushnew (the-message c) (getf error-fields key) :test #'equal)
-				      (pushnew (cons parent-field (the-message c)) error-fields :test #'equal)))
+				(pushnew (cons parent-field (the-message c)) error-fields :test #'eq)
 				(continue)))
 			  (signal-convert
 			    #'(lambda (c)
@@ -98,51 +95,6 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 	 (with-active-layers (form-layer)
 	   (class-name class)))
 	t)))
-
-;;(define-layered-method validate-fields
-;;  :in-layer form-layer ((class serialize) &key include-fields exclude-fields)
-;;  (let ((stored-fields nil)
-;;	(fields (retrieve-fields (class-of class)
-;;				 :include-fields include-fields 
-;;				 :exclude-fields exclude-fields)))
-;;    (with-slots (error-fields) class
-;;      (setf error-fields nil)
-;;      (loop
-;;	for (fieldname . fields) in fields
-;;	for field = (car fields)
-;;	for value = (unless (typep field 'checkbox)
-;;		      (slot-value class fieldname))
-;;	do (with-slots (parent-field) field
-;;	     (handler-bind ((validate-field-error
-;;			      #'(lambda (c)
-;;				  (let ((key (intern (format nil "~a-ERRORS" (slot-definition-name parent-field)) 'keyword)))
-;;				    (if (getf error-fields key)
-;;					(pushnew (the-message c) (getf error-fields key) :test #'equal)
-;;					(progn
-;;					  (push (list (the-message c)) error-fields)
-;;					  (push key error-fields))))
-;;				  ;;(pushnew (cons parent-field (the-message c)) error-fields :test #'equal)
-;;				  (continue)))
-;;			    (signal-convert
-;;			      #'(lambda (c)
-;;				  (setf (slot-value class fieldname) (value c))))
-;;			    (store-slot
-;;			      #'(lambda (c)
-;;				  (push (cons (slot-name c) (stored-slot c)) stored-fields))))
-;;	       (unless (typep field 'submit)
-;;		 (if (html-parse-disabled field)
-;;		     (validate-form-error "Cannot validate form. Disabled fields returned")
-;;		     (typecase field
-;;		       (select
-;;			(validate-field field value :options (retrieve-options class (slot-definition-name parent-field))))
-;;		       (t
-;;			(validate-field field value))))))))
-;;      (if error-fields
-;;	  (validate-form-error
-;;	   "The form ~a contains errors."
-;;	   (with-active-layers (form-layer)
-;;	     (class-name (class-of class))))
-;;	  t))))
 
 
 (defun string-is-numberp (string)
