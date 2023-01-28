@@ -171,27 +171,35 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 (defmethod validate-field ((field email) value &key)
   (flet ((call-error ()
 	   (validate-field-error "The value ~s is not a valid email address" value)))
-    (call-next-method)
-    (when value
-      (let ((has-@)
-	    (valid-chars '(#\! #\? #\# #\$ #\% #\’ #\` #\+ #\- #\* #\/ #\= #\~ #\^ #\_ #\{ #\} #\| #\.)))
-	(loop
-	  for char across value
-	  for valid-char = (or (alphanumericp char)
-			       (member char valid-chars :test #'char=)
-			       (char= char #\@)
-			       (char= char #\.))
-	  unless valid-char
-	    do (call-error)
-	    and do (return)
-	  do (cond ((and (char= char #\@) has-@)
-		    (call-error))
-		   ((char= char #\@)
-		    (setf has-@ t))))))))
+    (let ((values (or (when (html-parse-multiple field)
+			(explode-string value '(#\, #\space) :remove-separators t))
+		      (ensure-list value))))
+      (if values
+	  (loop
+	    for email in values
+	    do (call-next-method field email)
+	    do (when value
+		 (let ((has-@)
+		       (valid-chars '(#\! #\? #\# #\$ #\% #\’ #\` #\+ #\- #\* #\/ #\= #\~ #\^ #\_ #\{ #\} #\| #\.)))
+		   (loop
+		     for char across value
+		     for valid-char = (or (alphanumericp char)
+					  (member char valid-chars :test #'char=)
+					  (char= char #\@)
+					  (char= char #\.))
+		     unless valid-char
+		       do (call-error)
+		       and do (return)
+		     do (cond ((and (char= char #\@) has-@)
+			       (call-error))
+			      ((char= char #\@)
+			       (setf has-@ t)))
+		     finally (unless has-@
+			       (call-error))))))
+	  (call-next-method)))))
 
 
-(define-layered-method validate-field
-  :in-layer form-layer ((field color) value &key)
+(defmethod validate-field ((field color) value &key)
   (with-slots (parent-field) field
     (flet ((call-error ()
 	     (validate-field-error "The ~s value ~s is not a valid colour." (slot-definition-name parent-field) value)))
