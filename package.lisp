@@ -9,7 +9,8 @@
    :self
    :ensure-list
    :ensure-string
-   :get-float)
+   :get-float
+   :explode-string)
   (:import-from
    :closer-mop
    :slot-definition-name
@@ -84,14 +85,46 @@
    :format-timestring
    :+asctime-format+)
   (:export
+   :base-form-class
    :form-class
+   :form-slot-definition
+
    :form-layer
    :define-form
    :render-template
+   :csrf
+   :novalidate
    :validate-form
    :validate-fields
    :validate-field
+
+   ;; conditions
    :validate-form-error
    :validate-field-error
    :signal-convert
-   :store-slot))
+   :store-slot
+
+   ;; fieldtypes/ancilliary
+   ;; definitions
+   :text
+   :password
+   :email
+   :url
+   :tel
+   :submit
+   :button
+   :number-field
+   :color
+   :date
+   :datetime-local
+   :time-field
+   :checkbox
+   :radio
+   :file
+   :select
+   :datalist
+   :textarea
+   :output
+   :option
+
+   :retrieve-options))
