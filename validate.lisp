@@ -163,7 +163,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
       (let ((pattern (html-parse-pattern field)))
 	(when pattern
 	  (unless (or (string= "" value)
-		      (scan (concatenate 'string "^" (string-trim '(#\$ #\^) pattern) "$") value))
+		      (cl-ppcre:scan (concatenate 'string "^" (string-trim '(#\$ #\^) pattern) "$") value))
 	    (validate-field-error "The ~s value ~s does not match the expected pattern" (slot-definition-name parent-field) value))))
       (signal-convert (sanitize value sanitize)))))
 

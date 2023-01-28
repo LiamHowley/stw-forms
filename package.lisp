@@ -26,10 +26,6 @@
    :partial-class-base-initargs
    :singleton-class)
   (:import-from
-   :cl-ppcre
-   :scan
-   :scan-to-strings)
-  (:import-from
    :cl-comp
    :slot-definition-class
    :serialized-p
