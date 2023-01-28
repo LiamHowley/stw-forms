@@ -12,3 +12,4 @@
 *.tex
 *.pdf
 docs/_minted-README/*
+test/templates/*
