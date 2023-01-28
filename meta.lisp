@@ -339,7 +339,7 @@
   (write-string name stream)
   (write-string " %}"stream)
   (indent-string indent stream)
-  (write-string "<option value='{{ option.value }}' {{ option.disabled }}{{ option.selected }}>{{ option.output }}</option>" stream)
+  (write-string "<option value='{{ option.value }}'{{ option.disabled }}{{ option.selected }}>{{ option.output }}</option>" stream)
   (indent-string indent stream)
   (write-string "{% endfor %}" stream))
 
