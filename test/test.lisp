@@ -94,12 +94,18 @@
    <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='A CSRF token' />
    <div id='name-text-container' class='form-field-container'>
       <input id='name-text' class='form-field input-field' type='text' name='name' required value='' />
+      <div class='error-message'>
+      </div>
    </div>
    <div id='password-password-container' class='form-field-container'>
       <input id='password-password' class='form-field input-field' type='password' name='password' required value='' />
+      <div class='error-message'>
+      </div>
    </div>
    <div id='submit-submit-container' class='form-field-container'>
       <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Log In' />
+      <div class='error-message'>
+      </div>
    </div>
 </form>"
 	(render-template (make-instance 'login :submit "Log In"))
@@ -107,12 +113,18 @@
    <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='A CSRF token' />
    <div id='name-text-container' class='form-field-container'>
       <input id='name-text' class='form-field input-field' type='text' name='name' required value='Liam' />
+      <div class='error-message'>
+      </div>
    </div>
    <div id='password-password-container' class='form-field-container'>
       <input id='password-password' class='form-field input-field' type='password' name='password' required value='12345678' />
+      <div class='error-message'>
+      </div>
    </div>
    <div id='submit-submit-container' class='form-field-container'>
       <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Log In' />
+      <div class='error-message'>
+      </div>
    </div>
 </form>"
 	    (render-template (make-instance 'login :submit "Log In" :name "Liam" :password "12345678"))))))
@@ -135,12 +147,16 @@
       <div class='labelled-field'>
          <input id='name-text' class='form-field input-field' type='text' autofocus name='name' required value='' />
       </div>
+      <div class='error-message'>
+      </div>
    </div>
    <div id='email-email-container' class='form-field-container'>
       <label for='email-email'>Email
       </label>
       <div class='labelled-field'>
          <input id='email-email' class='form-field input-field' type='email' name='email' required value='' />
+      </div>
+      <div class='error-message'>
       </div>
    </div>
    <div id='profile-textarea-container' class='form-field-container'>
@@ -149,6 +165,8 @@
       <div class='labelled-field'>
          <textarea id='profile-textarea' class='form-field' name='profile' placeholder='blah' required>
          </textarea>
+      </div>
+      <div class='error-message'>
       </div>
    </div>
    <div id='visiblity-datalist-container' class='form-field-container'>
@@ -160,6 +178,8 @@
       <datalist id='options'>
          
       </datalist>
+      <div class='error-message'>
+      </div>
    </div>
    
    <div id='privileges-select-container' class='form-field-container'>
@@ -172,6 +192,8 @@
          <option value='eyesonly'>Eyes Only</option>
          
       </select>
+      <div class='error-message'>
+      </div>
    </div>
    
    <div id='active-checkbox-container' class='form-field-container'>
@@ -182,6 +204,8 @@
             <input id='active-checkbox' class='form-field input-field' type='checkbox' name='active' value='active' />
          </div>
       </div>
+      <div class='error-message'>
+      </div>
    </div>
    <div id='password-password-container' class='form-field-container'>
       <label for='password-password'>Password
@@ -189,9 +213,13 @@
       <div class='labelled-field'>
          <input id='password-password' class='form-field input-field' type='password' maxlength='10' minlength='6' name='password' required value='' />
       </div>
+      <div class='error-message'>
+      </div>
    </div>
    <div id='submit-submit-container' class='form-field-container'>
       <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Create Account' />
+      <div class='error-message'>
+      </div>
    </div>
 </form>"
 	(render-template (make-instance 'account)))))

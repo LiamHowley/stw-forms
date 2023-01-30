@@ -75,7 +75,11 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
       do (with-slots (parent-field) field
 	   (handler-bind ((validate-field-error
 			    #'(lambda (c)
-				(pushnew (cons parent-field (the-message c)) error-fields :test #'eq)
+				(let* ((name (format nil "~a-ERRORS" (car (slot-definition-initargs parent-field))))
+				      (key (intern name 'keyword)))
+				  (if (getf error-fields key)
+				      (pushnew (the-message c) (getf error-fields key) :test #'string=)
+				      (setf (getf error-fields key) (list (the-message c)))))
 				(continue)))
 			  (signal-convert
 			    #'(lambda (c)
@@ -101,9 +105,9 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (defun string-is-numberp (string)
-	(loop for char across string
-	    always (or (digit-char-p char)
-		       (char= char #\.))))
+  (loop for char across string
+	always (or (digit-char-p char)
+		   (char= char #\.))))
 
 
 (defmethod validate-field ((field number-field) value &key)
@@ -319,7 +323,8 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 	    do (setf (cadr rules) t)
 	  when (and capitalize (upper-case-p char))
 	    do (setf (caddr rules) t)
-	  finally (unless (car rules)
+	  finally 
+	     (unless (car rules)
 		    (validate-field-error "Password must contain at least one special character # $ ! ^ £ € % * ~~ @"))
 		  (unless (cadr rules)
 		    (validate-field-error "Password must contain at least one number."))

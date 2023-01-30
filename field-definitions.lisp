@@ -116,3 +116,11 @@ clobbering divs throughout a template."))
 
 (defmethod xml.parse:class->element ((class field-container))
   "div")
+
+(defclass error-message (div)
+  ((parent-field :initarg :parent-field :reader parent-field))
+  (:documentation "Internal class to target any error messages without
+clobbering divs throughout a template."))
+
+(defmethod xml.parse:class->element ((class error-message))
+  "div")

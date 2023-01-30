@@ -152,6 +152,8 @@
 			      (t (value)))))
 			 (t
 			  (value)))))))))
+  (awhen (slot-value instance 'error-fields)
+    (setf args `(,@args ,@self)))
   (render-template (class-of instance) stream args))
 
 
@@ -207,12 +209,15 @@
       :in form-layer
       :around (slot field &rest args &key &allow-other-keys)
     (declare (ignore args))
-    (make-instance 'field-container
-		   :class "form-field-container"
-		   :parent-node slot
-		   :id (format nil "~(~a-~a~)-container" (slot-definition-name slot) (class-name (class-of field)))
-		   :child-nodes (call-next-method)))
-
+    (let ((slot-name (slot-definition-name slot))
+	  (errors (make-instance 'error-message
+				 :class '("error-message")
+				 :parent-field slot)))
+      (make-instance 'field-container
+		     :class "form-field-container"
+		     :parent-node slot
+		     :id (format nil "~(~a-~a~)-container" slot-name (class-name (class-of field)))
+		     :child-nodes `(,@(call-next-method) ,errors))))
   (:method
       :in form-layer ((slot form-slot-definition) field &rest args &key label label-placement &allow-other-keys)
     (let ((label (when label
@@ -360,6 +365,15 @@
 	  (t
 	   (call-next-method)))))
 
+(defmethod serialize-object ((object error-message) (stream stream) &optional indent include-children)
+  (declare (ignore include-children))
+  (write-char #\> stream)
+  (let* ((parent-slot (slot-value object 'parent-field))
+	 (name (car (slot-definition-initargs parent-slot))))
+    (format stream "{% for message in ~(~a-errors~) %}" name)
+    (indent-string (+ 3 indent) stream)
+    (write-string "<p>{{ message }}</p>" stream)
+    (write-string "{% endfor %}" stream)))
 
 (defmethod serialize-object ((object select) (stream stream) &optional indent include-children)
   (declare (ignore include-children))
