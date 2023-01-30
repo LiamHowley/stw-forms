@@ -6,7 +6,7 @@
 
 (defun validate-form-error (field-errors format-control &rest format-args)
   (error "Form contains errors."
-	  'validate-field-error
+	  'validate-form-error
 	  :field-errors field-errors
 	  :format-control format-control
 	  :format-arguments format-args))
