@@ -2,14 +2,18 @@
 
 
 (define-condition validate-form-error (simple-error)
-  ((field-errors :initarg :field-errors :initform nil)))
+  ((field-errors :initarg :field-errors :initform nil :reader field-errors)
+   (field-values :initarg :field-values :initform nil :reader field-values))
+  (:report (lambda (c s)
+	     (declare (ignore c))
+	     (format s "Form contains errors."))))
 
-(defun validate-form-error (field-errors format-control &rest format-args)
-  (error "Form contains errors."
-	  'validate-form-error
-	  :field-errors field-errors
-	  :format-control format-control
-	  :format-arguments format-args))
+(defun validate-form-error (field-errors field-values format-control &rest format-args)
+  (error 'validate-form-error
+	 :field-errors field-errors
+	 :field-values field-values
+	 :format-control format-control
+	 :format-arguments format-args))
 
 
 
