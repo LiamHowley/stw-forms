@@ -293,7 +293,9 @@
     (prog1 (call-next-method)
       (setf (html-parse-name field) (format nil "~(~a~)" (slot-definition-name slot))))))
 
-    
+
+
+
 
 (define-layered-function retrieve-options (class slot-name &key value)
   (:documentation "Retrieve the options for datalist and select fields.")
@@ -335,65 +337,3 @@
 	(when (consp template)
 	  (setf (slot-value class 'template) self)
 	  (compile-template class))))))
-
-
-(defun set-options (indent name stream)
-  (indent-string indent stream)
-  (write-string "{% for option in " stream)
-  (write-string name stream)
-  (write-string " %}"stream)
-  (indent-string indent stream)
-  (write-string "<option value='{{ option.value }}'{{ option.disabled }}{{ option.selected }}>{{ option.output }}</option>" stream)
-  (indent-string indent stream)
-  (write-string "{% endfor %}" stream))
-
-
-(defmethod serialize-object :around ((object field-container) (stream stream) &optional indent include-children)
-  (declare (ignore include-children))
-  (let ((select (query-select object #'(lambda (child)
-					  (typep child 'select)))))
-    (cond (select
-	   (let* ((parent-slot (slot-value select 'parent-field))
-		  (name (car (slot-definition-initargs parent-slot))))
-	     (indent-string indent stream)
-	     (write-string "{% if " stream)
-	     (format stream "~(~a~)" name)
-	     (write-string " %}" stream)
-	     (call-next-method)
-	     (indent-string indent stream)
-	     (write-string "{% endif %}" stream)))
-	  (t
-	   (call-next-method)))))
-
-(defmethod serialize-object ((object error-message) (stream stream) &optional indent include-children)
-  (declare (ignore include-children))
-  (write-char #\> stream)
-  (let* ((parent-slot (slot-value object 'parent-field))
-	 (name (car (slot-definition-initargs parent-slot))))
-    (format stream "{% for message in ~(~a-errors~) %}" name)
-    (indent-string (+ 3 indent) stream)
-    (write-string "<p>{{ message }}</p>" stream)
-    (write-string "{% endfor %}" stream)))
-
-(defmethod serialize-object ((object select) (stream stream) &optional indent include-children)
-  (declare (ignore include-children))
-  (write-char #\> stream)
-  (let* ((parent-field (slot-value object 'parent-field))
-	 (name (format nil "~(~a~)" (car (slot-definition-initargs parent-field)))))
-    (set-options (+ 3 indent) name stream)))
-
-(defmethod serialize-object ((object datalist) (stream stream) &optional indent include-children)
-  (declare (ignore include-children))
-  (write-char #\> stream)
-  (let* ((parent-field (slot-value object 'parent-field))
-	 (name (format nil "~(~a~)" (car (slot-definition-initargs parent-field)))))
-    (set-options (+ 3 indent) name stream)))
-
-(defmethod serialize-object ((object textarea) (stream stream) &optional indent include-children)
-  (declare (ignore include-children))
-  (write-char #\> stream)
-  (let ((text (slot-value object 'the-content)))
-    (when text
-      (write-string text stream)))
-  (indent-string indent stream)
-  (write-string "</textarea>" stream))

@@ -17,6 +17,7 @@
 	       (:file "field-definitions")
 	       (:file "conditions")
 	       (:file "meta")
+	       (:file "print")
 	       (:file "validate"))
   :long-description
   #.(uiop:read-file-string
