@@ -17,6 +17,7 @@
 	       (:file "field-definitions")
 	       (:file "conditions")
 	       (:file "meta")
+	       (:file "render")
 	       (:file "print")
 	       (:file "validate"))
   :long-description
