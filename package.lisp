@@ -97,12 +97,15 @@
    :validate-form
    :validate-fields
    :validate-field
+   :assign-user-input
 
    ;; conditions
    :validate-form-error
    :validate-field-error
    :signal-convert
    :store-slot
+   :field-errors
+   :field-values
 
    ;; fieldtypes/ancilliary
    ;; definitions

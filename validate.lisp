@@ -1,6 +1,29 @@
 (in-package stw.form)
 
 
+(define-layered-function assign-user-input (form values &rest rest &key)
+  (:documentation "Accepts a BASE-FORM-CLASS and an alist of (<fieldname> . <value>). Calls
+VALIDATE-FORM with supplied arguments and catches any returning errors. Returns the values of
+an instance of BASE-FORM-CLASS with assigned values, and a boolean to indicate the presence
+of errors in the slot ERROR-FIELDS. Errors assigned to the slot ERROR-FIELDS are formatted
+as a plist to be accepted by RENDER-TEMPLATE, so that a redirect with relevant values and 
+errors can be automated.")
+  (:method
+      :in form-layer 
+      ((form base-form-class) values &rest rest &key include-fields exclude-fields csrf-token)
+    (declare (ignore include-fields exclude-fields csrf-token))
+    (handler-case (values
+		   (awhen (apply #'validate-form form values rest)
+		     (apply #'make-instance form self))
+		   nil)
+      (validate-form-error (c)
+	(values
+	 (apply #'make-instance form 
+		:error-fields (field-errors c)
+		(field-values c))
+	 t)))))
+
+
 (define-layered-function retrieve-fields (class &key)
   (:documentation "RETRIEVE-FIELDS returns an alist of (slotname . <field objects>).")
 
@@ -25,7 +48,7 @@
   (:documentation "VALIDATE-FORM is primarily concerned with verifying the requirement and equality of
 any CSRF token. It subsequently calls VALIDATE-FIELDS. As truncated forms may have been rendered
 the params INCLUDE-FIELDS and EXCLUDE-FIELDS are available to pass on to VALIDATE-FIELDS. Forms with
-errors will return a VALIDATE-FORM-ERROR condition. If a form slot NOVALIDATE is true, no value is returned."))
+errors will return a VALIDATE-FORM-ERROR condition."))
 
 (define-layered-function validate-fields (class values &key)
   (:documentation "VALIDATE-FIELDS processes each field in a loop after first testing for presence in 
@@ -46,17 +69,13 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 (define-layered-method validate-form
   :in-layer form-layer ((class base-form-class) values &key csrf-token include-fields exclude-fields)
-  (with-slots (csrf novalidate) class
-    (cond (novalidate
-	   (values))
-	  (t
-	   (unless (string= csrf csrf-token)
-	     (validate-form-error nil "The form ~a does not have a valid csrf token."
-				  (class-name class)))
-	   (validate-fields class
-			    values
-			    :include-fields include-fields
-			    :exclude-fields exclude-fields)))))
+  (if (string= (slot-value class 'csrf) csrf-token)
+      (validate-fields class
+		       values
+		       :include-fields include-fields
+		       :exclude-fields exclude-fields)
+      (validate-form-error nil nil "The form ~a does not contain a valid csrf token."
+			   (class-name class))))
 
 
 (define-layered-method validate-fields
@@ -65,7 +84,9 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
   (let ((fields (retrieve-fields class
 				 :include-fields include-fields 
 				 :exclude-fields exclude-fields))
-	(error-fields))
+	(novalidate (slot-value class 'novalidate))
+	(error-fields)
+	(field-values))
     (loop
       for (fieldname . fields) in fields
       for field = (car fields)
