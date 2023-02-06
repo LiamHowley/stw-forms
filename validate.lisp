@@ -305,7 +305,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 	      ((string-equal fieldname "repeat-password")
 	       (awhen (assoc "NEW-PASSWORD" stored-fields :test #'string=)
 		 (unless (string= value (cdr self))
-		   (validate-field-error parent-field "passwords do not match")))))
+		   (validate-field-error "passwords do not match")))))
 	(when value
 	  (signal-convert (sanitize value sanitize)))))))
 
