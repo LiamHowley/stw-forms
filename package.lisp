@@ -127,4 +127,5 @@
    :output
    :option
 
+   :grouped-list
    :retrieve-options))

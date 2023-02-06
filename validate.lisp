@@ -73,36 +73,34 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 		    (awhen (assoc fieldname values :test #'string-equal)
 		      (cdr self)))
       do (with-slots (parent-field) field
-	   (handler-bind ((validate-field-error
-			    #'(lambda (c)
-				(let* ((name (format nil "~a-ERRORS" (car (slot-definition-initargs parent-field))))
-				      (key (intern name 'keyword)))
-				  (if (getf error-fields key)
-				      (pushnew (the-message c) (getf error-fields key) :test #'string=)
-				      (setf (getf error-fields key) (list (the-message c)))))
-				(continue)))
-			  (signal-convert
-			    #'(lambda (c)
-				(setf (cdr (assoc fieldname values :test #'string-equal)) (value c))))
-			  (store-slot
-			    #'(lambda (c)
-				(push (cons (fieldname c) (stored-value c)) stored-fields))))
-	     (unless (typep field 'submit)
-	       (if (html-parse-disabled field)
-		   (validate-form-error error-fields "Cannot validate form. Disabled fields returned")
-		   (typecase field
-		     (select
-		      (validate-field field value :options (retrieve-options class (slot-definition-name parent-field))))
-		     (t
-		      (validate-field field value))))))))
+	   (let ((initarg (car (slot-definition-initargs parent-field))))
+	     (setf (getf field-values initarg) value)
+	     (handler-bind ((validate-field-error
+			      #'(lambda (c)
+				  (let* ((name (format nil "~a-ERRORS" initarg))
+					 (key (intern name 'keyword)))
+				    (if (getf error-fields key)
+					(pushnew (the-message c) (getf error-fields key) :test #'string=)
+					(setf (getf error-fields key) (list (the-message c)))))
+				  (continue)))
+			    (signal-convert
+			      #'(lambda (c)
+				  (setf (cdr (assoc fieldname values :test #'string-equal)) (value c))))
+			    (store-slot
+			      #'(lambda (c)
+				  (push (cons (fieldname c) (stored-value c)) stored-fields))))
+	       (unless (or novalidate (typep field 'submit))
+		 (typecase field
+		   ((or select grouped-list)
+		    (validate-field field value :options (retrieve-options class (slot-definition-name parent-field))))
+		   (t
+		    (validate-field field value))))))))
     (if error-fields
-	(validate-form-error
-	 error-fields
-	 "The form ~a contains errors."
-	 (with-active-layers (form-layer)
-	   (class-name class)))
-	t)))
-
+	(validate-form-error error-fields field-values
+			     "The form ~a contains errors."
+			     (with-active-layers (form-layer)
+			       (class-name class)))
+	field-values)))
 
 (defun string-is-numberp (string)
   (loop for char across string
@@ -111,6 +109,8 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (defmethod validate-field ((field number-field) value &key)
+  (when (html-parse-disabled field)
+    (validate-form-error error-fields nil "Cannot validate form. Disabled fields returned"))
   (with-accessors ((required html-parse-required)
 		   (input-name html-parse-name)
 		   (min-d html-parse-minlength)
@@ -140,6 +140,8 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (defmethod validate-field ((field text!) value &key)
+  (when (html-parse-disabled field)
+    (validate-form-error error-fields nil "Cannot validate form. Disabled fields returned"))
   (with-slots (sanitize parent-field) field
     (with-accessors ((name html-parse-input-name)
 		     (required html-parse-required)
@@ -207,6 +209,8 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (defmethod validate-field ((field color) value &key)
+  (when (html-parse-disabled field)
+    (validate-form-error error-fields nil "Cannot validate form. Disabled fields returned"))
   (with-slots (parent-field) field
     (flet ((call-error ()
 	     (validate-field-error "The ~s value ~s is not a valid colour." (slot-definition-name parent-field) value)))
@@ -223,6 +227,8 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 	
 
 (defmethod validate-field ((field date) value &key)
+  (when (html-parse-disabled field)
+    (validate-form-error error-fields nil "Cannot validate form. Disabled fields returned"))
   (unless (parse-timestring value :fail-on-error nil) 
     (validate-field-error "The value ~s is not a valid timestring." value))
   (with-accessors ((min-time html-parse-input-min)
@@ -246,12 +252,16 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (defmethod validate-field ((field checkbox) value &key)
+  (when (html-parse-disabled field)
+    (validate-form-error error-fields nil "Cannot validate form. Disabled fields returned"))
   (awhen (html-parse-checked field)
     (unless (string-equal self value)
       (validate-field-error "The value ~s and the returned value ~s do not match." value self))))
 
 
 (defmethod validate-field ((field select) value &key options)
+  (when (html-parse-disabled field)
+    (validate-form-error error-fields nil "Cannot validate form. Disabled fields returned"))
   (with-accessors ((input-name html-parse-input-name)
 		   (required html-parse-required)
 		   (multiple html-parse-multiple))
@@ -267,6 +277,8 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (defmethod validate-field ((field file) value &key)
+  (when (html-parse-disabled field)
+    (validate-form-error error-fields nil "Cannot validate form. Disabled fields returned"))
   (with-slots (accept files min-size max-size) field
     (when (and required (string= "" value))
       (validate-field-error "~s is a required field" input-name))
@@ -279,6 +291,8 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 (defmethod validate-field ((field password) value &key)
   (declare (special stored-fields))
+  (when (html-parse-disabled field)
+    (validate-form-error error-fields nil "Cannot validate form. Disabled fields returned"))
   (with-slots (parent-field sanitize rules) field
     (requiredp field (html-parse-required field) value)
     (let ((fieldname (symbol-name (slot-definition-name parent-field))))
@@ -332,21 +346,17 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 		    (validate-field-error "Password must contain at least one capital letter.")))))))
 
 	
-;;
-;;(define-layered-method validate-field
-;;  :in-layer form-layer ((field checklist) &key value)
-;;  (with-slots (options) field
-;;    (loop for item in value
-;;	  do (labels ((recurse (value acc)
-;;			(cond ((null value) nil)
-;;			      ((atom value)
-;;			       (unless (ensure-option-value value (parse-eval options) 'value)
-;;				 (validate-field-error "The value ~a does not correspond to any option values." value)))
-;;			      (t (recurse (car value) (recurse (cdr value) acc))))))
-;;	       (recurse item nil)))))
-;;
-;;
-;;
+(defmethod validate-field
+    ((field grouped-list) value &key options)
+  (let ((value (ensure-list value)))
+    (when value
+      (setf value (ensure-list value))
+      (loop for v in value
+	    do (unless (ensure-option-value v options)
+		 (validate-field-error "The value ~a does not correspond to any option values." v))))))
+
+
+
 ;;(define-layered-method validate-field
 ;;  :in-layer form-layer ((field checklist-table) &key value)
 ;;  (with-slots (options) field

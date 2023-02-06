@@ -220,15 +220,25 @@
 	   args)))
 
 
-(define-layered-function add-label (slot label &rest args &key &allow-other-keys)
+(define-layered-function initialize-grouped-fields (slot field &rest args &key &allow-other-keys)
   (:method
-      :in form-layer
-      ((slot form-slot-definition) (class label) &rest args &key label for &allow-other-keys)
-    (apply #'reinitialize-instance class
-	   :for (if for for (format nil "~(~a-~a~)" (slot-definition-name slot) (slot-definition-fieldtype slot)))
-	   :child-nodes (list (make-instance 'text-node :text label))
-	   :allow-other-keys t
-	   args)))
+      :in form-layer ((slot form-slot-definition) (field grouped-list) &rest args &key input-name input-type &allow-other-keys)
+    (setf (getf args :label) "{{ field.label }}"
+	  (getf args :for) "{{ field.id }}"
+	  (getf args :value) "{{ field.value }}")
+    (let* ((slot-name (format nil "~(~a~)" (slot-definition-name slot)))
+	   (input-class (aif input-type
+			     (find-class (intern (string-upcase self)))
+			     (find-class 'text)))
+	   (input (apply #'initialize-form-field slot
+			 (make-instance input-class
+					:name (or input-name (format nil "~(~a[{{ field.name }}]~)" slot-name))
+					:parent-field slot)
+			 args)))
+      (setf (slot-value field 'child-nodes) input)
+      (apply #'add-label slot field args)
+      (apply #'set-field slot field :class "grouped-fields-row" args)
+      field)))
 
 
 (define-layered-function initialize-form-field (slot field &rest args &key &allow-other-keys)

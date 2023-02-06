@@ -110,11 +110,19 @@
   (when multiple-valuep
     (setf (html-parse-multiple field) t)))
 
+
 (defclass field-container (div) ()
   (:documentation "Internal class to target the field container without
 clobbering divs throughout a template."))
 
 (defmethod xml.parse:class->element ((class field-container))
+  "div")
+
+(defclass grouped-list (div field!)
+  ((parent-field :initarg :parent-field))
+  (:documentation "Wrapper class around a list of fields."))
+
+(defmethod xml.parse:class->element ((class grouped-list))
   "div")
 
 (defclass error-message (div)
@@ -124,3 +132,13 @@ clobbering divs throughout a template."))
 
 (defmethod xml.parse:class->element ((class error-message))
   "div")
+
+(defclass grouped-field (div)
+  ((parent-field :initarg :parent-field)
+   (child-nodes :initarg :child-node)
+   (id :initarg :id :initform nil)
+   (label :initarg :label :initform nil)
+   (checked :initarg :checked :initform nil)
+   (name :initarg :name :initform nil)
+   (value :initarg :value :initform nil))
+  (:documentation "Wrapper class around a list of fields."))

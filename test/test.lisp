@@ -77,6 +77,13 @@
 	   :accessor submit))
   (:template . ("stw-forms" "test/templates/change-password-form.html")))
 
+(define-form group-membership ()
+  ((groups :fieldtype grouped-list
+	   :input-type checkbox)
+   (submit :fieldtype submit 
+	   :initform "Submit"
+	   :accessor submit))
+  (:template . ("stw-forms" "test/templates/group-membership-form.html")))
 
 (define-test sanity
     :parent all-tests
@@ -217,6 +224,51 @@
 </form>"
 	(render-template (make-instance 'account)))))
 
+(define-layered-method retrieve-options :in form-layer ((class stw.form::form-class) (slot-name (eql 'groups)) &key value)
+  (declare (ignore value))
+  '((:value "admin" :id "admin" :label "Admin")
+    (:value "topsecret" :id "topsecret" :label "Top Secret" :checked "checked")
+    (:value "eyesonly" :id "eyesonly" :label "Eyes Only")))
+
+(define-test render3
+  :parent all-tests
+  (with-active-layers (form-layer)
+    (is string-equal "<form name='group-membership'>
+   <div id='groups-grouped-list-container' class='form-field-container'>
+      <div id='groups-grouped-list' class='grouped-fields-row'> 
+         <div class='checkbox-wrap'>
+            <label for='admin'>Admin
+            </label>
+            <div class='labelled-field'>
+               <input   id='admin' class='form-field input-field' type='checkbox' name='groups[]' value='admin' />
+            </div>
+         </div> 
+         <div class='checkbox-wrap'>
+            <label for='topsecret'>Top Secret
+            </label>
+            <div class='labelled-field'>
+               <input checked  id='topsecret' class='form-field input-field' type='checkbox' name='groups[]' value='topsecret' />
+            </div>
+         </div> 
+         <div class='checkbox-wrap'>
+            <label for='eyesonly'>Eyes Only
+            </label>
+            <div class='labelled-field'>
+               <input   id='eyesonly' class='form-field input-field' type='checkbox' name='groups[]' value='eyesonly' />
+            </div>
+         </div>
+      </div>
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='submit-submit-container' class='form-field-container'>
+      <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Submit' />
+      <div class='error-message'>
+      </div>
+   </div>
+</form>"
+	(render-template (make-instance 'group-membership)))))
+
 (define-test validate
   :parent all-tests
   (with-active-layers (form-layer)
@@ -244,7 +296,21 @@
     (fail (validate-form (find-class 'account) '((privileges . ("toplevel")) (name . "foo") (email . "foo@bar.baz") (profile . "bar") (password . "baz")) :csrf-token "csrf-token"))
 
     ;; fails maxlength on password
-    (fail (validate-form (find-class 'account) '((privileges . ("eyesonly")) (name . "foo") (email . "foo@bar.baz") (profile . "bar") (password . "foobarbaz!G")) :csrf-token "csrf-token"))))
+    (fail (validate-form (find-class 'account) '((privileges . ("eyesonly")) (name . "foo") (email . "foo@bar.baz") (profile . "bar") (password . "foobarbaz!G")) :csrf-token "csrf-token"))
+
+    (true (validate-form (find-class 'group-membership) '((groups . ("admin" "topsecret" "eyesonly")))))
+
+    (true (validate-form (find-class 'group-membership) '((groups . ("admin")))))
+
+    (true (validate-form (find-class 'group-membership) '((groups . ("topsecret")))))
+
+    (true (validate-form (find-class 'group-membership) '((groups . ("eyesonly")))))
+
+    (fail (validate-form (find-class 'group-membership) '((groups . ("admin" "topsecret" "eyesonly" "root")))))
+
+    (fail (validate-form (find-class 'group-membership) '((groups . ("admin" "topsecret" "youreyesonly")))))))
+
+
 
 (define-test validate-password
   :parent all-tests
