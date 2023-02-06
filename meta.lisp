@@ -112,8 +112,8 @@
 
 (defclass error-fields ()
   ((error-fields :initform nil
-		 :documentation "Errors are bound to the form-instance as form-fields and are typically cached."))
-  (:metaclass singleton-class))
+		 :initarg :error-fields
+		 :documentation "Errors are bound to the form-instance as form-fields and are typically cached.")))
 
 
 (defmacro define-form (name &body body)

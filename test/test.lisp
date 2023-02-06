@@ -175,27 +175,20 @@
       <div class='labelled-field'>
          <input id='visiblity-datalist' class='form-field input-field' type='text' list='options' name='visiblity' />
       </div>
-      <datalist id='options'>
-         
+      <datalist id='options' class='form-field'>
       </datalist>
       <div class='error-message'>
       </div>
    </div>
-   
    <div id='privileges-select-container' class='form-field-container'>
       <select id='privileges-select' class='form-field' name='privileges'>
-         
          <option value='admin'>Administration</option>
-         
          <option value='toplevel' selected>Top Secret</option>
-         
          <option value='eyesonly'>Eyes Only</option>
-         
       </select>
       <div class='error-message'>
       </div>
    </div>
-   
    <div id='active-checkbox-container' class='form-field-container'>
       <div class='checkbox-wrap'>
          <label for='active-checkbox'>Active
