@@ -180,9 +180,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 (defmethod validate-field ((field email) value &key)
   (flet ((call-error ()
 	   (validate-field-error "The value ~s is not a valid email address" value)))
-    (let ((values (or (when (html-parse-multiple field)
-			(explode-string value '(#\, #\space) :remove-separators t))
-		      (ensure-list value))))
+    (let ((values (ensure-list value)))
       (if values
 	  (loop
 	    for email in values
