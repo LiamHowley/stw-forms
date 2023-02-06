@@ -10,6 +10,7 @@
     (write-string (car spliced) stream)
     (write-string (cadr spliced) stream)
     (write-string "{{ field.checked }} " stream)
+    (write-string "{{ field.disabled }} " stream)
     (write-string (caddr spliced) stream)))
 
 (defmethod serialize-grouped-fields ((object grouped-list) (stream stream) &optional indent include-children)

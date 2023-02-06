@@ -5,7 +5,7 @@
   `(:extends :csrf :novalidate :action :method :enctype :autocomplete :rel :accept-charset :name))
 
 (defvar *form-slot-definition-initargs*
-  `(:input-type :name :value :list :step :options :min :max :size :formnovalidate :required :maxlength :minlength :pattern :accept :file :multiple :readonly :disabled :accept :alt :autocomplete :autofocus :capture :checked :dirname :form :formaction :formenctype :formmethod :formnovalidate :formtarget :pattern :placeholder :usemap :width :height :for :label :label-placement :use-numbers :special-chars :capitalize))
+  `(:input-type :input-name :value :list :step :options :min :max :size :formnovalidate :required :maxlength :minlength :pattern :accept :file :multiple :readonly :disabled :accept :alt :autocomplete :autofocus :capture :checked :dirname :form :formaction :formenctype :formmethod :formnovalidate :formtarget :pattern :placeholder :usemap :width :height :for :label :label-placement :use-numbers :special-chars :capitalize))
 
 
 (defclass form-context-class (template-context-class)
@@ -43,7 +43,7 @@
     :initform nil
     :reader slot-definition-field-attributes
     :initarg :input-type
-    :initarg :name
+    :initarg :input-name
     :initarg :value
     :initarg :list
     :initarg :step
@@ -86,7 +86,8 @@
    (label
     :initarg :for
     :initarg :label
-    :initarg :label-placement)))
+    :initarg :label-placement
+    :initform nil)))
 
 (defmethod slot-definition-class ((layer-metaclass form-context-class))
   'form-slot-definition)
@@ -141,16 +142,12 @@
 
 (define-layered-method initialize-in-context
   :in form-layer
-  ((slot form-slot-definition) &rest rest &key input-type &allow-other-keys)
+  ((slot form-slot-definition) &rest rest &key &allow-other-keys)
   (let ((rest* (loop
 		 for (key value) on rest by #'cddr
-		 if input-type
-		   collect :type and
-		 collect input-type
-		 else 
-		   when (member key *form-slot-definition-initargs* :test #'eq)
-		     collect key
-		     and collect value)))
+		 when (member key *form-slot-definition-initargs* :test #'eq)
+		   collect key
+		   and collect value)))
     (with-slots (fieldtype fields) slot
       (let* ((fieldclass-sym (typecase fieldtype
 			       (keyword (keyword->symbol fieldtype))
@@ -158,8 +155,69 @@
 			       (string (string->symbol fieldtype))))
 	     (field (make-instance fieldclass-sym
 				   ;; for select
-				   :multiple-valuep (multiple-valuep slot) :allow-other-keys t)))
-	(setf fields (apply #'initialize-form-fields slot field rest*))))))
+				   :multiple-valuep (multiple-valuep slot)
+				   :allow-other-keys t)))
+	(setf fields (typecase field
+		       (grouped-list
+			(field-container slot field (apply #'initialize-grouped-fields slot field rest*)))
+		       (t
+			(apply #'set-field slot field :class "form-field" rest*)
+			(apply #'field-container slot field (apply #'initialize-form-field slot field rest*)))))))))
+
+
+(defmethod add-label ((slot form-slot-definition) field &rest args &key label for label-placement &allow-other-keys)
+  (if label
+      (merge-label-and-field
+       (let ((slot-name (slot-definition-name slot))
+	     (fieldtype (slot-definition-fieldtype slot)))
+	 (apply #'make-instance 'label
+		:for (if for for (format nil "~(~a-~a~)" slot-name fieldtype))
+		:child-nodes (list (make-instance 'text-node :text label))
+		:allow-other-keys t
+		args))
+       (case label-placement
+	 ((:bottom :right)
+	  :rtl)
+	 (t
+	  :ltr))
+       field)
+      (list field)))
+
+
+(defmethod field-container ((slot form-slot-definition) field &rest fields)
+  (let ((slot-name (slot-definition-name slot))
+	(errors (make-instance 'error-message
+			       :class '("error-message")
+			       :parent-field slot)))
+    (make-instance 'field-container
+		   :class "form-field-container"
+		   :parent-node slot
+		   :id (format nil "~(~a-~a~)-container" slot-name (class-name (class-of field)))
+		   :child-nodes `(,@fields ,errors))))
+
+
+(defmethod merge-label-and-field (label placement field)
+  (setf (html-parse-id field) (html-parse-for label))
+  (let ((fields
+	  (list label (make-instance 'div
+				     :class "labelled-field"
+				     :child-nodes (list field)))))
+    (if (eq placement :ltr)
+	fields
+	(reverse fields))))
+
+
+(defmethod set-field ((slot form-slot-definition) field &rest args &key id class &allow-other-keys)
+  (let ((slot-name (slot-definition-name slot))
+	(fieldtype (slot-definition-fieldtype slot)))
+    (apply #'reinitialize-instance field
+	   :parent-field slot
+	   :class (let ((field-class (ensure-list (html-class field))))
+		    (pushnew class field-class :test #'string-equal))
+	   :name (format nil "~(~a~)" slot-name)
+	   :id (if id id (format nil "~(~a-~a~)" slot-name fieldtype))
+	   :allow-other-keys t
+	   args)))
 
 
 (define-layered-function add-label (slot label &rest args &key &allow-other-keys)
@@ -173,53 +231,11 @@
 	   args)))
 
 
-(define-layered-function initialize-form-fields (slot field &rest args &key &allow-other-keys)
+(define-layered-function initialize-form-field (slot field &rest args &key &allow-other-keys)
 
   (:method
-      :in form-layer
-      :around (slot field &rest args &key &allow-other-keys)
-    (declare (ignore args))
-    (let ((slot-name (slot-definition-name slot))
-	  (errors (make-instance 'error-message
-				 :class '("error-message")
-				 :parent-field slot)))
-      (make-instance 'field-container
-		     :class "form-field-container"
-		     :parent-node slot
-		     :id (format nil "~(~a-~a~)-container" slot-name (class-name (class-of field)))
-		     :child-nodes `(,@(call-next-method) ,errors))))
-  (:method
-      :in form-layer ((slot form-slot-definition) field &rest args &key label label-placement &allow-other-keys)
-    (let ((label (when label
-		   (apply #'add-label slot (make-instance 'label) args)))
-	  (placement (case label-placement
-		       ((:bottom :right)
-			:rtl)
-		       (t
-			:ltr)))
-	  (slot-name (slot-definition-name slot)))
-      (apply #'reinitialize-instance field
-	     :parent-field slot
-	     :allow-other-keys t
-	     args)
-      (setf (html-class field) (ensure-list (html-class field))
-	    (html-parse-name field) (format nil "~(~a~)" slot-name))
-      (pushnew "form-field" (html-class field) :test #'string-equal)
-      ;; default id
-      (unless (html-parse-id field) 
-	(setf (html-parse-id field)
-	      (if label
-		  (html-parse-for label)
-		  (format nil "~(~a-~a~)" slot-name (slot-definition-fieldtype slot)))))
-      (let ((fields
-	      (if label
-		  (list label (make-instance 'div
-					     :class "labelled-field"
-					     :child-nodes (list field)))
-		  (list field))))
-	(if (eq placement :ltr)
-	    fields
-	    (reverse fields)))))
+      :in form-layer ((slot form-slot-definition) field &rest args &key &allow-other-keys)
+    (apply #'add-label slot field args))
 
   (:method
       :in form-layer ((slot form-slot-definition) (field input) &rest args &key value &allow-other-keys)
@@ -230,10 +246,11 @@
 	      (if value value (format nil "{{ ~(~a~) }}" (car (slot-definition-initargs slot))))))))
 
   (:method
-      :in form-layer ((slot form-slot-definition) (field checkbox) &rest args &key &allow-other-keys)
+      :in form-layer ((slot form-slot-definition) (field checkbox) &rest args &key value &allow-other-keys)
     (declare (ignore args))
     (prog1 (list (make-instance 'div :class "checkbox-wrap" :child-nodes (call-next-method)))
-      (setf (html-parse-value field) (format nil "~(~a~)" (car (slot-definition-initargs slot))))))
+      (unless value
+	(setf (html-parse-value field) (html-parse-name field)))))
 
   (:method
       :in form-layer ((slot form-slot-definition) (field textarea) &rest args &key &allow-other-keys)
@@ -242,12 +259,14 @@
       (setf (slot-value field 'the-content) (format nil "{{ ~(~a~) }}" (car (slot-definition-initargs slot))))))
 
   (:method
-      :in form-layer ((slot form-slot-definition) (field datalist) &rest args &key &allow-other-keys)
+      :in form-layer ((slot form-slot-definition) (field datalist) &rest args &key list &allow-other-keys)
     (let* ((input-class (aif (getf args :input-type)
 			     (find-class (intern (string-upcase self)))
 			     (find-class 'text)))
 	   (name (format nil "~(~a~)" (slot-definition-name slot)))
-	   (input (apply #'call-next-layered-method slot (make-instance input-class :name name) args)))
+	   (list (if list list (format nil "~a-list" name)))
+	   (input (apply #'call-next-layered-method slot (make-instance input-class :name name :parent-field slot :list list)
+			 args)))
       `(,@input ,(apply #'reinitialize-instance field 
 			:allow-other-keys t
 			:parent-field slot
