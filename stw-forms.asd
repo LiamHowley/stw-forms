@@ -11,7 +11,8 @@
 	       "cl-comp"
 	       "cl-ppcre"
 	       "local-time"
-	       "trivial-mimes")
+	       "trivial-mimes"
+	       "flexi-streams")
   :serial t
   :components ((:file "package")
 	       (:file "field-definitions")

@@ -301,10 +301,11 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
   (with-slots (accept files min-size max-size) field
     (when (and required (string= "" value))
       (validate-field-error "~s is a required field" input-name))
-    (loop for file in value
-	  for filename = (accept-file-p field file accept)
-	  when filename
-	    do (check-size-constraints field file min-size max-size))))
+    (loop
+      for file in value
+      for filename = (accept-file-p field file accept)
+      when filename
+	do (check-size-constraints field file min-size max-size))))
 
 
 
@@ -427,11 +428,12 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (defun check-size-constraints (field file min-size max-size)
-  (let ((size (typecase (car file)
-		(flexi-streams:vector-stream
-		 (flex::vector-stream-end (car file)))
-		(sb-sys:fd-stream
-		 (file-length (car file))))))
+  (let ((size
+	  (typecase (car file)
+	    (file-stream
+	     (file-length (car file)))
+	    (flexi-streams:vector-stream
+	     (flex::vector-stream-end (car file))))))
     (cond ((and min-size (< size min-size))
 	   (validate-field-error "The file ~a is less than the minimum file size of ~dKB" (/ min-size 1000 )))
 	  ((and max-size (> size max-size))
