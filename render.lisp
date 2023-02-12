@@ -25,6 +25,7 @@
 			      (datalist (retrieve-options (class-of object) slot-name))
 			      (select (retrieve-options (class-of object) slot-name :value (value)))
 			      (grouped-list (retrieve-options (class-of object) slot-name :value (value)))
+			      (grouped-table (retrieve-options (class-of object) slot-name :value (value)))
 			      (t (value)))))
 			 (t
 			  (value)))))))))

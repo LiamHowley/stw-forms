@@ -118,12 +118,53 @@ clobbering divs throughout a template."))
 (defmethod xml.parse:class->element ((class field-container))
   "div")
 
+
 (defclass grouped-list (div field!)
-  ((parent-field :initarg :parent-field))
+  ((parent-field :initarg :parent-field :initform nil)
+   (name :initarg :name :initform nil))
   (:documentation "Wrapper class around a list of fields."))
 
 (defmethod xml.parse:class->element ((class grouped-list))
   "div")
+
+(defmethod shared-initialize :after ((class grouped-list) slot-names &key)
+  (with-slots (parent-field name) class
+    (unless name
+      (when parent-field
+	(setf name (car (slot-definition-initargs parent-field)))))))
+
+
+(defclass grouped-row-heading (div)
+  ((parent-field :initarg :parent-field :initform nil)
+   (name :initarg :name :initform nil))
+  (:documentation "Wrapper class around a row of fields in a table."))
+
+(defmethod xml.parse:class->element ((class grouped-row-heading))
+  "div")
+
+(defmethod shared-initialize :after ((class grouped-list) slot-names &key)
+  (with-slots (parent-field name) class
+    (unless name
+      (when parent-field
+	(setf name (car (slot-definition-initargs parent-field)))))))
+
+
+(defclass grouped-row (grouped-list)
+  ()
+  (:documentation "Wrapper class around a table of fields."))
+
+(defmethod xml.parse:class->element ((class grouped-row))
+  "div")
+
+
+(defclass grouped-table (grouped-list)
+  ((headings :initarg :headings)
+   (rows :initarg :rows))
+  (:documentation "Wrapper class around a table of fields."))
+
+(defmethod xml.parse:class->element ((class grouped-table))
+  "div")
+
 
 (defclass error-message (div)
   ((parent-field :initarg :parent-field :reader parent-field))
@@ -133,12 +174,20 @@ clobbering divs throughout a template."))
 (defmethod xml.parse:class->element ((class error-message))
   "div")
 
-(defclass grouped-field (div)
-  ((parent-field :initarg :parent-field)
-   (child-nodes :initarg :child-node)
-   (id :initarg :id :initform nil)
-   (label :initarg :label :initform nil)
-   (checked :initarg :checked :initform nil)
+(defclass row-headings ()
+  ((row :initarg :row :initform nil)))
+
+(defclass form-row ()
+  ((heading :initarg :heading :initform nil)
    (name :initarg :name :initform nil)
-   (value :initarg :value :initform nil))
-  (:documentation "Wrapper class around a list of fields."))
+   (fields :initarg :fields :initform nil))
+  (:documentation "Contains the slots heading, and fields; the former
+to act as label to a row of fields, and the latter a list of fields of 
+type GROUPED-FIELD. Typically used in conjunction with the generic function
+RETRIEVE-OPTIONS."))
+
+(defclass grouped-field (input)
+  ((label :initarg :label :initform nil))
+  (:documentation "Class where slots correspond to field variables to 
+aid in rendering a list/row of fields. Typically used in conjunction 
+with the generic function RETRIEVE-OPTIONS."))

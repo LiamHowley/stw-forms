@@ -156,9 +156,10 @@
 	     (field (make-instance fieldclass-sym
 				   ;; for select
 				   :multiple-valuep (multiple-valuep slot)
+				   :parent-field slot
 				   :allow-other-keys t)))
 	(setf fields (typecase field
-		       (grouped-list
+		       ((or grouped-list grouped-table)
 			(field-container slot field (apply #'initialize-grouped-fields slot field rest*)))
 		       (t
 			(apply #'set-field slot field :class "form-field" rest*)
@@ -186,14 +187,16 @@
 
 (defmethod field-container ((slot form-slot-definition) field &rest fields)
   (let ((slot-name (slot-definition-name slot))
-	(errors (make-instance 'error-message
-			       :class '("error-message")
-			       :parent-field slot)))
+	(errors 
+	  (unless (eq (slot-value slot 'fieldtype) 'submit)
+	    (make-instance 'error-message
+			   :class '("error-message")
+			   :parent-field slot))))
     (make-instance 'field-container
 		   :class "form-field-container"
 		   :parent-node slot
 		   :id (format nil "~(~a-~a~)-container" slot-name (class-name (class-of field)))
-		   :child-nodes `(,@fields ,errors))))
+		   :child-nodes (append fields (ensure-list errors)))))
 
 
 (defmethod merge-label-and-field (label placement field)
@@ -207,15 +210,15 @@
 	(reverse fields))))
 
 
-(defmethod set-field ((slot form-slot-definition) field &rest args &key id class &allow-other-keys)
-  (let ((slot-name (slot-definition-name slot))
-	(fieldtype (slot-definition-fieldtype slot)))
+(defmethod set-field ((slot form-slot-definition) field &rest args &key class id &allow-other-keys)
+  "Ensure basic defaults are set."
+  (let ((slot-name (slot-definition-name slot)))
     (apply #'reinitialize-instance field
 	   :parent-field slot
 	   :class (let ((field-class (ensure-list (html-class field))))
 		    (pushnew class field-class :test #'string-equal))
 	   :name (format nil "~(~a~)" slot-name)
-	   :id (if id id (format nil "~(~a-~a~)" slot-name fieldtype))
+	   :id (if id id nil)
 	   :allow-other-keys t
 	   args)))
 
@@ -237,8 +240,51 @@
 			 args)))
       (setf (slot-value field 'child-nodes) input)
       (apply #'add-label slot field args)
+      (apply #'set-field slot field :class "grouped-fields-list" args)
+      field))
+
+  (:method
+      :in form-layer ((slot form-slot-definition) (field grouped-row-heading) &rest args &key &allow-other-keys)
+    (setf (getf args :class) "row-heading")
+    (let ((heading-container (make-instance 'div :class '("column-heading")))
+	  (style (make-instance 'h5 :class "heading"))
+	  (heading (make-instance 'text-node :text "{{ heading.row }}")))
+      (setf (slot-value field 'child-nodes) (list heading-container)
+	    (slot-value heading-container 'child-nodes) (list style)
+	    (slot-value style 'child-nodes) (list heading)))
+    (apply #'set-field slot field :class "grouped-fields-row" args)
+    field)
+
+  (:method
+      :in form-layer ((slot form-slot-definition) (field grouped-row) &rest args &key input-name input-type &allow-other-keys)
+    (setf (getf args :for) "{{ field.id }}"
+	  (getf args :value) "{{ field.value }}")
+    (let* ((slot-name (format nil "~(~a~)" (slot-definition-name slot)))
+	   (input-class (aif input-type
+			     (find-class (intern (string-upcase self)))
+			     (find-class 'text)))
+	   (name (case (class-name input-class)
+		   (radio (or input-name (format nil "~(~a[{{ row.name }}]~)" slot-name)))
+		   (checkbox (or input-name (format nil "~(~a[{{ row.name }}][]~)" slot-name)))))
+	   (input (apply #'initialize-form-field slot
+			 (make-instance input-class
+					:name name
+					:parent-field slot)
+			 args)))
+      (setf (slot-value field 'child-nodes) input)
       (apply #'set-field slot field :class "grouped-fields-row" args)
-      field)))
+      field))
+
+  (:method
+      :in form-layer ((slot form-slot-definition) (field grouped-table) &rest args &key &allow-other-keys)
+    (let ((grouped-row-heading (make-instance 'grouped-row-heading :parent-field slot))
+	  (grouped-row (make-instance 'grouped-row)))
+      (setf (slot-value field 'child-nodes)
+	    (list (apply #'initialize-grouped-fields slot grouped-row-heading :name "heading" args)
+		  (apply #'initialize-grouped-fields slot grouped-row :name "row" args)))
+;;      (apply #'add-label slot field args)
+      (apply #'set-field slot field :class "group-fields-table" args))))
+
 
 
 (define-layered-function initialize-form-field (slot field &rest args &key &allow-other-keys)
@@ -258,9 +304,16 @@
   (:method
       :in form-layer ((slot form-slot-definition) (field checkbox) &rest args &key value &allow-other-keys)
     (declare (ignore args))
-    (prog1 (list (make-instance 'div :class "checkbox-wrap" :child-nodes (call-next-method)))
+    (prog1 (list (make-instance 'div :class '("checkbox-wrap") :child-nodes (call-next-method)))
       (unless value
 	(setf (html-parse-value field) (html-parse-name field)))))
+
+  (:method 
+      :in form-layer ((slot form-slot-definition) (field radio) &rest args &key &allow-other-keys)
+    (declare (ignore args))
+    (let ((wrapped-field (call-next-method)))
+      (setf (html-class (car wrapped-field)) '("radio-field-wrap"))
+      wrapped-field))
 
   (:method
       :in form-layer ((slot form-slot-definition) (field textarea) &rest args &key &allow-other-keys)
@@ -290,7 +343,9 @@
       :in form-layer ((slot form-slot-definition) (field select) &rest args &key &allow-other-keys)
     (declare (ignore args))
     (prog1 (call-next-method)
-      (setf (html-parse-name field) (format nil "~(~a~)" (slot-definition-name slot))))))
+      (let ((slot-name (slot-definition-name slot)))
+	(setf (html-parse-name field) (format nil "~(~a~)" slot-name)
+	      (html-parse-id field) (format nil "~(~a-select~)" slot-name))))))
 
 
 

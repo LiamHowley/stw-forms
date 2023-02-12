@@ -1,11 +1,34 @@
 (in-package stw.form)
 
 
+(defmethod serialize-object ((object grouped-table) (stream stream) &optional indent (include-children t))
+  (declare (ignore include-children))
+  (with-slots (child-nodes name) object
+    (write-char #\> stream)
+    (serialize-object (car child-nodes) stream (when indent (+ 3 indent)) t)
+    (format stream "{% for row in ~(~a~).rows %} " name)
+    (serialize-object (cadr child-nodes) stream (when indent (+ 3 indent)) t)
+    (write-string "{% endfor %}" stream)))
+
+(defmethod serialize-object ((object grouped-row-heading) (stream stream) &optional indent (include-children t))
+  (declare (ignore include-children))
+  (with-slots (child-nodes name) object
+    (write-char #\> stream)
+    (format stream "{% for heading in ~(~a~).headings %} " name)
+    (serialize-object (car child-nodes) stream (when indent (+ 3 indent)) t)
+    (write-string "{% endfor %}" stream)))
+
+(defmethod serialize-object ((object grouped-row) (stream stream) &optional indent (include-children t))
+  (declare (ignore include-children))
+  (with-slots (name) object
+    (setf name "row.fields")
+    (call-next-method)))
+
 (defmethod serialize-object ((object grouped-list) (stream stream) &optional indent (include-children t))
   (declare (ignore include-children))
   (let* ((serialized-object (xml.parse:serialize object
 						 :indent indent
-						 :serializer #'serialize-grouped-fields))
+						 :serializer #'serialize-grouped-list))
 	 (spliced (explode-string serialized-object '("input "))))
     (write-string (car spliced) stream)
     (write-string (cadr spliced) stream)
@@ -13,16 +36,25 @@
     (write-string "{{ field.disabled }} " stream)
     (write-string (caddr spliced) stream)))
 
-(defmethod serialize-grouped-fields ((object grouped-list) (stream stream) &optional indent include-children)
+(defmethod serialize-grouped-list :around ((object grouped-list) (stream stream) &optional indent include-children)
   (declare (ignore include-children))
-  (let* ((parent-slot (slot-value object 'parent-field))
-	 (name (car (slot-definition-initargs parent-slot))))
-    (write-char #\> stream)
-    (format stream "{% for field in ~(~a~) %} " name)
-    (loop
-      for child in (slot-value object 'child-nodes)
-      do (serialize-object child stream (when indent (+ 3 indent)) t))
-    (write-string "{% endfor %}" stream)))
+  (write-char #\> stream)
+  (call-next-method))
+
+(defmethod serialize-grouped-list ((object grouped-row) (stream stream) &optional indent include-children)
+  (declare (ignore include-children))
+  (when indent
+    (indent-string (+ 3 indent) stream))
+  (write-string "<h5>{{ row.heading }}</h5>" stream)
+  (call-next-method))
+
+(defmethod serialize-grouped-list ((object grouped-list) (stream stream) &optional indent include-children)
+  (declare (ignore include-children))
+  (format stream "{% for field in ~(~a~) %} " (slot-value object 'name))
+  (loop
+    for child in (slot-value object 'child-nodes)
+    do (serialize-object child stream (when indent (+ 3 indent)) t))
+  (write-string "{% endfor %}" stream))
 
 
 (defmethod serialize-object :around ((object field-container) (stream stream) &optional indent include-children)

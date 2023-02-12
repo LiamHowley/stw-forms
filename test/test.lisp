@@ -27,6 +27,74 @@
   (:csrf . "A CSRF token")
   (:action . "/login"))
 
+(define-form new-password ()
+  ((password :fieldtype password
+	     :required t
+	     :label "Password")
+   (new-password :fieldtype password
+		 :required t
+		 :maxlength 10
+		 :minlength 6 
+		 :special-chars t
+		 :use-numbers t
+		 :capitalize t
+		 :label "Password")
+   (repeat-password :fieldtype password
+		    :required t
+		    :label "Password")
+   (submit :fieldtype submit 
+	   :initform "New Password"
+	   :accessor submit))
+  (:template . ("stw-forms" "test/templates/change-password-form.html")))
+
+(define-test sanity
+  :parent all-tests
+  (with-active-layers (form-layer)
+    (of-type form-class (find-class 'login))
+    (of-type djula::compiled-template (slot-value (find-class 'login) 'stw.form::template))
+    (is string= "A CSRF token" (csrf (find-class 'login)))
+    (false (novalidate (find-class 'login)))))
+
+
+(define-test render1
+  :parent all-tests
+  (with-active-layers (form-layer)
+    (is string-equal "<form method='get' action='/login' name='login'>
+   <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='A CSRF token' />
+   <div id='name-text-container' class='form-field-container'>
+      <input class='form-field input-field' type='text' name='name' required value='' />
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='password-password-container' class='form-field-container'>
+      <input class='form-field input-field' type='password' name='password' required value='' />
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='submit-submit-container' class='form-field-container'>
+      <input class='form-field input-field' type='submit' name='submit' value='Log In' />
+   </div>
+</form>"
+	(render-template (make-instance 'login :submit "Log In"))
+	(is string-equal "<form method='get' action='/login' name='login'>
+   <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='A CSRF token' />
+   <div id='name-text-container' class='form-field-container'>
+      <input class='form-field input-field' type='text' name='name' required value='Liam' />
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='password-password-container' class='form-field-container'>
+      <input class='form-field input-field' type='password' name='password' required value='12345678' />
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='submit-submit-container' class='form-field-container'>
+      <input class='form-field input-field' type='submit' name='submit' value='Log In' />
+   </div>
+</form>"
+	    (render-template (make-instance 'login :submit "Log In" :name "Liam" :password "12345678"))))))
+
+
 (define-form account ()
   ((name :label "Name"
 	 :required t
@@ -56,85 +124,6 @@
 	   :accessor submit))
   (:csrf . "csrf-token")
   (:template . ("stw-forms" "test/templates/account-form.html")))
-
-(define-form new-password ()
-  ((password :fieldtype password
-	     :required t
-	     :label "Password")
-   (new-password :fieldtype password
-		 :required t
-		 :maxlength 10
-		 :minlength 6 
-		 :special-chars t
-		 :use-numbers t
-		 :capitalize t
-		 :label "Password")
-   (repeat-password :fieldtype password
-		    :required t
-		    :label "Password")
-   (submit :fieldtype submit 
-	   :initform "New Password"
-	   :accessor submit))
-  (:template . ("stw-forms" "test/templates/change-password-form.html")))
-
-(define-form group-membership ()
-  ((groups :fieldtype grouped-list
-	   :input-type checkbox)
-   (submit :fieldtype submit 
-	   :initform "Submit"
-	   :accessor submit))
-  (:template . ("stw-forms" "test/templates/group-membership-form.html")))
-
-(define-test sanity
-    :parent all-tests
-    (with-active-layers (form-layer)
-      (of-type form-class (find-class 'login))
-      (of-type djula::compiled-template (slot-value (find-class 'login) 'stw.form::template))
-      (is string= "A CSRF token" (csrf (find-class 'login)))
-      (false (novalidate (find-class 'login)))))
-
-
-(define-test render1
-  :parent all-tests
-  (with-active-layers (form-layer)
-    (is string-equal "<form method='get' action='/login' name='login'>
-   <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='A CSRF token' />
-   <div id='name-text-container' class='form-field-container'>
-      <input id='name-text' class='form-field input-field' type='text' name='name' required value='' />
-      <div class='error-message'>
-      </div>
-   </div>
-   <div id='password-password-container' class='form-field-container'>
-      <input id='password-password' class='form-field input-field' type='password' name='password' required value='' />
-      <div class='error-message'>
-      </div>
-   </div>
-   <div id='submit-submit-container' class='form-field-container'>
-      <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Log In' />
-      <div class='error-message'>
-      </div>
-   </div>
-</form>"
-	(render-template (make-instance 'login :submit "Log In"))
-	(is string-equal "<form method='get' action='/login' name='login'>
-   <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='A CSRF token' />
-   <div id='name-text-container' class='form-field-container'>
-      <input id='name-text' class='form-field input-field' type='text' name='name' required value='Liam' />
-      <div class='error-message'>
-      </div>
-   </div>
-   <div id='password-password-container' class='form-field-container'>
-      <input id='password-password' class='form-field input-field' type='password' name='password' required value='12345678' />
-      <div class='error-message'>
-      </div>
-   </div>
-   <div id='submit-submit-container' class='form-field-container'>
-      <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Log In' />
-      <div class='error-message'>
-      </div>
-   </div>
-</form>"
-	    (render-template (make-instance 'login :submit "Log In" :name "Liam" :password "12345678"))))))
 
 (define-layered-method retrieve-options :in form-layer ((class stw.form::form-class) (slot-name (eql 'privileges)) &key value)
   (declare (ignore value))
@@ -217,12 +206,19 @@
       </div>
    </div>
    <div id='submit-submit-container' class='form-field-container'>
-      <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Create Account' />
-      <div class='error-message'>
-      </div>
+      <input class='form-field input-field' type='submit' name='submit' value='Create Account' />
    </div>
 </form>"
 	(render-template (make-instance 'account)))))
+
+
+(define-form group-membership ()
+  ((groups :fieldtype grouped-list
+	   :input-type checkbox)
+   (submit :fieldtype submit 
+	   :initform "Submit"
+	   :accessor submit))
+  (:template . ("stw-forms" "test/templates/group-membership-form.html")))
 
 (define-layered-method retrieve-options :in form-layer ((class stw.form::form-class) (slot-name (eql 'groups)) &key value)
   (declare (ignore value))
@@ -235,7 +231,7 @@
   (with-active-layers (form-layer)
     (is string-equal "<form name='group-membership'>
    <div id='groups-grouped-list-container' class='form-field-container'>
-      <div id='groups-grouped-list' class='grouped-fields-row'> 
+      <div class='grouped-fields-list'> 
          <div class='checkbox-wrap'>
             <label for='admin'>Admin
             </label>
@@ -262,12 +258,102 @@
       </div>
    </div>
    <div id='submit-submit-container' class='form-field-container'>
-      <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Submit' />
-      <div class='error-message'>
-      </div>
+      <input class='form-field input-field' type='submit' name='submit' value='Submit' />
    </div>
 </form>"
 	(render-template (make-instance 'group-membership)))))
+
+(define-layered-method retrieve-options :in form-layer ((class stw.form::form-class) (slot-name (eql 'groups)) &key value)
+  (declare (ignore value))
+  '((:value "admin" :id "admin" :label "Admin")
+    (:value "topsecret" :id "topsecret" :label "Top Secret" :checked "checked")
+    (:value "eyesonly" :id "eyesonly" :label "Eyes Only")))
+
+
+(define-form group-status ()
+  ((status :fieldtype grouped-table
+	   :input-type radio)
+   (submit :fieldtype submit 
+	   :initform "Submit"
+	   :accessor submit))
+  (:template . ("stw-forms" "test/templates/group-status-form.html")))
+
+
+(define-layered-method retrieve-options :in form-layer ((class stw.form::form-class) (slot-name (eql 'status)) &key value)
+  (declare (ignore value))
+  (make-instance 'grouped-table
+		 :headings `(,(make-instance 'row-headings :row "Admin")
+			     ,(make-instance 'row-headings :row "Eyes Only"))
+		 :rows `(,(make-instance 'form-row
+					 :heading "Accounts"
+					 :name "accounts"
+					 :fields `(,(make-instance 'grouped-field
+								   :id "admin"
+								   :checked "checked"
+								   :name "admin"
+								   :value "admin")
+						   ,(make-instance 'grouped-field
+								   :id "eyesonly"
+								   :name "eyesonly"
+								   :value "eyesonly")))
+			 ,(make-instance 'form-row
+					 :heading "Security"
+					 :name "security"
+					 :fields `(,(make-instance 'grouped-field
+								   :id "admin"
+								   :checked "checked" 
+								   :name "admin"
+								   :value "Admin")
+						   ,(make-instance 'grouped-field
+								   :id "eyesonly"
+								   :name "eyesonly"
+								   :value "eyesonly"))))))
+
+
+(define-test render4
+  :parent all-tests
+  (with-active-layers (form-layer)
+    (is string-equal "<form name='group-status'>
+   <div id='status-grouped-table-container' class='form-field-container'>
+      <div class='group-fields-table'>
+         <div class='grouped-fields-row'> 
+            <div class='column-heading'>
+               <h5 class='heading'>Admin
+               </h5>
+            </div> 
+            <div class='column-heading'>
+               <h5 class='heading'>Eyes Only
+               </h5>
+            </div>
+         </div> 
+         <div class='grouped-fields-row'>
+            <h5>Accounts</h5> 
+            <div class='radio-field-wrap'>
+               <input checked  class='form-field input-field' type='radio' name='status[accounts]' value='admin' />
+            </div> 
+            <div class='radio-field-wrap'>
+               <input   class='form-field input-field' type='radio' name='status[accounts]' value='eyesonly' />
+            </div>
+         </div> 
+         <div class='grouped-fields-row'>
+            <h5>Security</h5> 
+            <div class='radio-field-wrap'>
+               <input checked  class='form-field input-field' type='radio' name='status[security]' value='Admin' />
+            </div> 
+            <div class='radio-field-wrap'>
+               <input   class='form-field input-field' type='radio' name='status[security]' value='eyesonly' />
+            </div>
+         </div>
+      </div>
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='submit-submit-container' class='form-field-container'>
+      <input class='form-field input-field' type='submit' name='submit' value='Submit' />
+   </div>
+</form>"
+	(render-template (make-instance 'group-status)))))
+
 
 (define-test validate
   :parent all-tests
@@ -308,7 +394,15 @@
 
     (fail (validate-form (find-class 'group-membership) '((groups . ("admin" "topsecret" "eyesonly" "root")))))
 
-    (fail (validate-form (find-class 'group-membership) '((groups . ("admin" "topsecret" "youreyesonly")))))))
+    (fail (validate-form (find-class 'group-membership) '((groups . ("admin" "topsecret" "youreyesonly")))))
+
+    (true (validate-form (find-class 'group-status) '((status (accounts . "admin") (security . "eyesonly")))))
+
+    (true (validate-form (find-class 'group-status) '((status (accounts . "eyesonly") (security . "admin")))))
+
+    (fail (validate-form (find-class 'group-status) '((status (accounts . "topsecret") (security . "admin")))))
+
+    (fail (validate-form (find-class 'group-status) '((status (accounts . "eyesonly") (security . "topsecret")))))))
 
 
 

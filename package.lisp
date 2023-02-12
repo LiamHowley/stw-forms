@@ -69,6 +69,7 @@
    :html-parse-checked
    :input-type
    :div
+   :h5
    :form
    :fieldset
    :legend
@@ -107,8 +108,7 @@
    :field-errors
    :field-values
 
-   ;; fieldtypes/ancilliary
-   ;; definitions
+   ;; fieldtypes/ancilliary definitions
    :text
    :password
    :email
@@ -131,4 +131,12 @@
    :option
 
    :grouped-list
+   :grouped-table
+   :grouped-row
+   :grouped-row-heading
+
+   ;; for rendering
+   :form-row
+   :row-headings
+   :grouped-field
    :retrieve-options))

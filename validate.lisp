@@ -112,7 +112,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 				  (push (cons (fieldname c) (stored-value c)) stored-fields))))
 	       (unless (or novalidate (typep field 'submit))
 		 (typecase field
-		   ((or select grouped-list)
+		   ((or select grouped-list grouped-table)
 		    (validate-field field value :options (retrieve-options class (slot-definition-name parent-field))))
 		   (t
 		    (validate-field field value))))))))
@@ -377,17 +377,36 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 
-;;(define-layered-method validate-field
-;;  :in-layer form-layer ((field checklist-table) &key value)
-;;  (with-slots (options) field
-;;    (let ((possible-values (loop for option in (parse-eval options)
-;;				 collect (slot-value (car option) 'row-value))))
-;;      (loop for item in value
-;;	    do (when (set-difference item possible-values :test #'equal)
-;;		 (validate-field-error "The value ~a does not correspond to any option values." item))))))
-;;
-;;
-;;
+(defmethod validate-field
+    ((field grouped-table) value &key options)
+  (let ((fieldtype (type-of (query-select field #'(lambda (node)
+						    (or (typep node 'radio)
+							(typep node 'checkbox)))))))
+    (loop
+      for (a . b) in value
+      when (and (consp b)
+		(eq fieldtype 'radio))
+	do (validate-field-error "Multiple values returned for ~s. Only one expected. Invalid form data." a)
+	and do (return)
+      do (loop
+	   for item in (ensure-list b)
+	   do (unless (ensure-option-value
+		       item
+		       (typecase options
+			 (cons (awhen (getf options :rows)
+				 (loop
+				   for row in self
+				   when (string-equal (getf self :name) a)
+				     do (return (getf self :fields)))))
+			 (grouped-table
+			  (loop
+			    for row in (slot-value options 'rows)
+			    if (string-equal a (slot-value row 'name))
+			      do (return (slot-value row 'fields))))))
+		(validate-field-error "The value ~a does not correspond to any option values." item))))))
+
+
+
 (defun ensure-option-value (value options)
   "Recursively walk a list of objects and test for the presence of value in field"
   (labels ((recurse (value options)
