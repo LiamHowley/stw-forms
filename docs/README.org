@@ -8,6 +8,8 @@
 
 STW-FORM uses [[https://github.com/liamhowley/stw-templates][STW-TEMPLATES]], a wrapper around [[https://github.com/mmontone/djula][DJULA]], a templating engine, to produce and render form templates. It uses the protocol [[https://github.com/liamhowley/cl-comp][CL-COMP]], (see below), and operates within the defined context FORM-LAYER. To use simply define a form with the DEFINE-FORM macro, and either render or validate the form as required.
 
+Note: While the API of STW-FORMS is limited and unlikely to change, this should be considered a work in progress. The usual disclaimers apply.
+
 ** To Load
 
 Use quickload to call ~(ql:quickload :stw-form)~. If not found in the quickload repositories, add to your local-projects directory.
