@@ -1,0 +1,297 @@
+#+LATEX_CLASS: stw-documentation
+#+TITLE: STW-FORM
+#+AUTHOR: Liam Howley
+
+#+OPTIONS: toc
+
+** Introduction
+
+STW-FORM uses [[https://github.com/liamhowley/stw-templates][STW-TEMPLATES]], a wrapper around [[https://github.com/mmontone/djula][DJULA]], a templating engine, to produce and render form templates. It uses the protocol [[https://github.com/liamhowley/cl-comp][CL-COMP]], (see below), and operates within the defined context FORM-LAYER. To use simply define a form with the DEFINE-FORM macro, and either render or validate the form as required.
+
+** To Load
+
+Use quickload to call ~(ql:quickload :stw-form)~. If not found in the quickload repositories, add to your local-projects directory.
+
+** The FORM-CLASS
+
+A form is a layered class, which uses the metaclass FORM-CLASS. FORM-CLASS inherits from both its defining metaclass BASE-FORM-CLASS and TEMPLATE-CLASS. As TEMPLATE-CLASS inherits from COMP-BASE-CLASS, STW-FORM inherits the contextual properties and behaviour of that class. As such, an instance of FORM-CLASS can be defined alongside an instance of, say, DB-INTERFACE-CLASS from the STW-DB library.
+
+*** BASE-FORM-CLASS
+
+The defining metaclass BASE-FORM-CLASS contains the slots CSRF-P, EXTENDS, NOVALIDATE, and FORM-ATTRIBUTES, and inherits the template slot from BASE-TEMPLATE-CLASS:
+
+**** CSRF-P
+
+CSRF-P is a boolean, (default T), that determines whether a CSRF token is required on rendering and validation. Failure to provide a CSRF token when CSRF-P is T, will result in a RENDERING-ERROR. 
+
+**** EXTENDS
+
+EXTENDS references the relative name of a DJULA template that the rendered form extends.
+
+**** NOVALIDATE
+
+Validation is skipped, when set.
+
+**** FORM-ATTRIBUTES
+
+Form attributes remains unbound, but receives a number of values matching initargs common to forms, including: 
+
+- name
+- action
+- method
+- enctype
+- autocomplete
+- rel
+- accept
+- accept-charset
+
+During class initialization, the values assigned to each initarg are transferrered to the relevant form for rendering.
+
+**** [[https://github.com/liam/howley/stw-templates][TEMPLATE]]
+
+The class slot TEMPLATE accepts a list of two arguments: the system name, and the relative path to the filename of the template. These are the arguments passed to ASDF:SYSTEM-RELATIVE-PATHNAME during initialization, the result of which is used to generate a compiled template of type DJULA:COMPILED-TEMPLATE, which is assigned in turn to the template slot.
+
+*** FORM-SLOT-DEFINITION
+
+Each direct slot in a FORM-CLASS is an instance of FORM-SLOT-DEFINITION, thus containing the slots SANITIZE, FIELDTYPE, FIELDS, RULES and LABEL.
+
+**** [[https://github.com/liamhowley/stw-sanitize][SANITIZE]]
+
+STW-Sanitize is employed to clean any user input of unwanted html/xml. It uses a whitelist to indicate which elements and attributes are allowed in user supplied text. As with STW-FORMS, each whitelist is a class definition. To use a particular mode, assign (find-class '<whitelist-mode>) to the slot SANITIZE.
+
+All text is automatically sanitized during validation. The default mode is TEXT-ONLY, however, other available modes are available and can be viewed at [[https://github.com/liamhowley/stw-sanitize][SANITIZE]].
+
+**** FIELDTYPE
+
+A symbol, FIELDTYPE names a class representation of a form field element. A number of fieldtypes are available such as checkbox, select, etc. While most inherit attributes directly from STW-HTML-PARSE library of element definitions, some are non intuitive and package local, including GROUPED-LIST and GROUPED-TABLE, enabling complex radio and checkbox lists and tables to be assigned to a single form slot. The default fieldtype is text.
+
+**** FIELDS
+
+The slot fields comes with a lengthy list of initargs which are used to assign the arguments to the field corresponding to fieldtype. 
+
+#+BEGIN_SRC lisp
+:input-type :input-name :value :list :step :options :min :max :size :required :maxlength :minlength :pattern :accept :file :multiple :readonly :disabled :accept :alt :autocomplete :autofocus :capture :checked :dirname :form :formaction :formenctype :formmethod :formnovalidate :formtarget :pattern :placeholder :usemap :width :height
+
+#+END_SRC
+
+**** RULES
+
+A slot with three initargs, :special-chars, :use-numbers and :capitalize, for validation of new passwords.
+
+**** LABEL
+
+A slot of three initargs, :for, :label and :label-placement, the last of which indicates whether to render a label on top, to the right, at the bottom or to the left of the field.
+
+
+** Defining a Form
+
+To define a form, use the DEFINE-FORM macro. 
+#+BEGIN_SRC lisp
+
+(define-form new-password ()
+  ((password :fieldtype password
+	     :required t
+	     :label "Password")
+   (new-password :fieldtype password
+		 :required t
+		 :maxlength 10
+		 :minlength 6 
+		 :special-chars t
+		 :use-numbers t
+		 :capitalize t
+		 :label "Password")
+   (repeat-password :fieldtype password
+		    :required t
+		    :label "Password")
+   (submit :fieldtype submit 
+	   :initform "New Password"
+	   :accessor submit))
+  (:template . ("stw-forms" "test/templates/change-password-form.html")))
+
+=> #<FORM-CLASS STW.FORM::NEW-PASSWORD>
+
+#+END_SRC
+
+This will automatically generate the template change-password-form.html:
+
+#+BEGIN_SRC html
+
+<form name='new-password'>
+   <div id='password-password-container' class='form-field-container'>
+      <label for='password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='password-password' class='form-field input-field' type='password' name='password' required value='{{ password }}' />
+      </div>
+      <div class='error-message'>{% for message in password-errors %}
+         <p>{{ message }}</p>{% endfor %}
+      </div>
+   </div>
+   <div id='new-password-password-container' class='form-field-container'>
+      <label for='new-password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='new-password-password' class='form-field input-field' type='password' maxlength='10' minlength='6' name='new-password' required value='{{ new-password }}' />
+      </div>
+      <div class='error-message'>{% for message in new-password-errors %}
+         <p>{{ message }}</p>{% endfor %}
+      </div>
+   </div>
+   <div id='repeat-password-password-container' class='form-field-container'>
+      <label for='repeat-password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='repeat-password-password' class='form-field input-field' type='password' name='repeat-password' required value='{{ repeat-password }}' />
+      </div>
+      <div class='error-message'>{% for message in repeat-password-errors %}
+         <p>{{ message }}</p>{% endfor %}
+      </div>
+   </div>
+   <div id='submit-submit-container' class='form-field-container'>
+      <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='{{ submit }}' />
+      <div class='error-message'>{% for message in submit-errors %}
+         <p>{{ message }}</p>{% endfor %}
+      </div>
+   </div>
+</form>
+
+#+END_SRC
+
+** Rendering a Form
+
+As the default value of CSRF-P is T, the above form requires a csrf token to render.
+
+#+BEGIN_SRC lisp
+
+(with-active-layers (form-layer)
+  (let ((instance (make-instance 'new-password :submit "Change Password"))
+        (csrf-token (generate-csrf-token)))
+    (render-template instance nil (default-arguments instance csrf-token))))
+
+#+END_SRC
+
+#+BEGIN_SRC html
+
+"<form name='new-password'>
+   <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='AgUBBgIDBwAFAAEIAAgDBQEHBQIEBwAABgYHBAMHAAQFBgMEAwgIAAEIAwcDBQUHBgIFAAIAAAYCBwQI' />
+   <div id='password-password-container' class='form-field-container'>
+      <label for='password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='password-password' class='form-field input-field' type='password' name='password' required value='' />
+      </div>
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='new-password-password-container' class='form-field-container'>
+      <label for='new-password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='new-password-password' class='form-field input-field' type='password' maxlength='10' minlength='6' name='new-password' required value='' />
+      </div>
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='repeat-password-password-container' class='form-field-container'>
+      <label for='repeat-password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='repeat-password-password' class='form-field input-field' type='password' name='repeat-password' required value='' />
+      </div>
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='submit-submit-container' class='form-field-container'>
+      <input class='form-field input-field' type='submit' name='submit' value='Change Password' />
+   </div>
+</form>"
+
+#+END_SRC
+
+** Validating User Data
+
+The above is a trivial example and skips the step of saving the csrf-token to some user-specific state, A.K.A session cookie. This is required for validating.
+
+*** ASSIGN-USER-DATA
+
+#+BEGIN_SRC lisp
+
+(with-active-layers (form-layer)
+  (assign-user-input (find-class 'new-password)
+		     '((password . "abcdefg") (new-password . "abcde") (repeat-password . "abcdefgh") (submit . "Change Password")) 
+		     :csrf-token-server "AgUBBgIDBwAFAAEIAAgDBQEHBQIEBwAABgYHBAMHAAQFBgMEAwgIAAEIAwcDBQUHBgIFAAIAAAYCBwQI"
+		     :csrf-token-client "AgUBBgIDBwAFAAEIAAgDBQEHBQIEBwAABgYHBAMHAAQFBgMEAwgIAAEIAwcDBQUHBgIFAAIAAAYCBwQI"))
+
+=> #<NEW-PASSWORD {100357DA43}>
+=> T 
+
+#+END_SRC
+
+As the above user inputted values contained errors, the above returned values include an instance of the form to be rendered complete with errors, and the boolean T, indicating the presence of errors. Thus the instance can be returned to the client.
+
+
+#+BEGIN_SRC lisp
+
+(with-active-layers (form-layer)
+  (let ((instance *)
+        (csrf-token (generate-csrf-token)))
+    (render-template instance nil (default-arguments instance csrf-token))))
+
+#+END_SRC
+
+This should now render the form complete with values and errors:
+
+#+BEGIN_SRC html
+
+"<form name='new-password'>
+   <div id='password-password-container' class='form-field-container'>
+      <label for='password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='password-password' class='form-field input-field' type='password' name='password' required value='abcdefg' />
+      </div>
+      <div class='error-message'>
+      </div>
+   </div>
+   <div id='new-password-password-container' class='form-field-container'>
+      <label for='new-password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='new-password-password' class='form-field input-field' type='password' maxlength='10' minlength='6' name='new-password' required value='abcde' />
+      </div>
+      <div class='error-message'>
+         <p>Password must contain at least one capital letter.</p>
+         <p>Password must contain at least one number.</p>
+         <p>Password must contain at least one special character # $ ! ^ £ € % * ~ @</p>
+         <p>Password must be at least 6 characters long</p>
+      </div>
+   </div>
+   <div id='repeat-password-password-container' class='form-field-container'>
+      <label for='repeat-password-password'>Password
+      </label>
+      <div class='labelled-field'>
+         <input id='repeat-password-password' class='form-field input-field' type='password' name='repeat-password' required value='abcdefgh' />
+      </div>
+      <div class='error-message'>
+         <p>passwords do not match</p>
+      </div>
+   </div>
+   <div id='submit-submit-container' class='form-field-container'>
+      <input id='submit-submit' class='form-field input-field' type='submit' name='submit' value='Change Password' />
+      <div class='error-message'>
+      </div>
+   </div>
+</form>"
+
+#+END_SRC
+
+
+** CL-COMP and CONTEXTL
+
+STW-FORM uses CL-COMP, a thin wrapper around [[https://github.com/pcostanza/contextl][CONTEXTL]]. For further information about the protocol STW-FORM uses to define table classes or interface nodes please see the documentation for [[https://github.com/liamhowley/cl-comp][CL-COMP]]. With that said, the section on class definition initialization is repeated here:
+
+#+BEGIN_QUOTE 
+ Initializing the class definition - important!
+
+ As layered classes are subclasses of STANDARD-CLASS, initialization protocols proceed as per normal. As such, context specific initialization procedures should not be placed within initialize-instance, reinitialize-instance or shared-initialize methods. To put it simply, they are not thread safe. Instead the layered function INITIALIZE-IN-CONTEXT is called from the auxiliary :around method of shared-initialize, and after the call to call-next-method. Context and class specific initialization procedures should be placed in specialized instances of this layered function. It is for this reason that layered classes of type COMP-BASE-CLASS are defined within their layer context.
+#+END_QUOTE

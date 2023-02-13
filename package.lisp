@@ -130,10 +130,6 @@
    :output
    :option
 
-   ;;csrf
-   :csrf-p
-   :generate-csrf-token
-
    :grouped-list
    :grouped-table
    :grouped-row
@@ -141,6 +137,10 @@
    :form-row
    :row-headings
    :grouped-field
+
+   ;;csrf
+   :csrf-p
+   :generate-csrf-token
 
    ;; methods
    :default-arguments
