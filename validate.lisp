@@ -10,8 +10,8 @@ as a plist to be accepted by RENDER-TEMPLATE, so that a redirect with relevant v
 errors can be automated.")
   (:method
       :in form-layer 
-      ((form base-form-class) values &rest rest &key include-fields exclude-fields csrf-token)
-    (declare (ignore include-fields exclude-fields csrf-token))
+      ((form base-form-class) values &rest rest &key include-fields exclude-fields csrf-token-server csrf-token-client)
+    (declare (ignore include-fields exclude-fields csrf-token-server csrf-token-client))
     (handler-case (values
 		   (awhen (apply #'validate-form form values rest)
 		     (apply #'make-instance form self))
@@ -68,14 +68,16 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 
 
 (define-layered-method validate-form
-  :in-layer form-layer ((class base-form-class) values &key csrf-token include-fields exclude-fields)
-  (if (string= (slot-value class 'csrf) csrf-token)
-      (validate-fields class
-		       values
-		       :include-fields include-fields
-		       :exclude-fields exclude-fields)
+  :in-layer form-layer ((class base-form-class) values &key csrf-token-server csrf-token-client include-fields exclude-fields)
+  (when (slot-value class 'csrf-p)
+    (unless (and csrf-token-server csrf-token-client
+		 (equalp csrf-token-server csrf-token-client))
       (validate-form-error nil nil "The form ~a does not contain a valid csrf token."
 			   (class-name class))))
+  (validate-fields class
+		   values
+		   :include-fields include-fields
+		   :exclude-fields exclude-fields))
 
 
 (define-layered-method validate-fields

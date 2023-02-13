@@ -12,7 +12,8 @@
 	       "cl-ppcre"
 	       "local-time"
 	       "trivial-mimes"
-	       "flexi-streams")
+	       "flexi-streams"
+	       "qbase64")
   :serial t
   :components ((:file "package")
 	       (:file "field-definitions")

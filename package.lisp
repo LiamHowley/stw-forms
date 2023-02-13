@@ -93,7 +93,6 @@
    :form-layer
    :define-form
    :render-template
-   :csrf
    :novalidate
    :validate-form
    :validate-fields
@@ -103,6 +102,7 @@
    ;; conditions
    :validate-form-error
    :validate-field-error
+   :rendering-error
    :signal-convert
    :store-slot
    :field-errors
@@ -130,13 +130,18 @@
    :output
    :option
 
+   ;;csrf
+   :csrf-p
+   :generate-csrf-token
+
    :grouped-list
    :grouped-table
    :grouped-row
    :grouped-row-heading
-
-   ;; for rendering
    :form-row
    :row-headings
    :grouped-field
+
+   ;; methods
+   :default-arguments
    :retrieve-options))

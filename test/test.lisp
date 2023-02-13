@@ -24,7 +24,7 @@
    (submit :fieldtype submit))
   (:template . ("stw-forms" "test/templates/log-in.html"))
   (:method . :GET)
-  (:csrf . "A CSRF token")
+  (:csrf-p . t)
   (:action . "/login"))
 
 (define-form new-password ()
@@ -45,6 +45,7 @@
    (submit :fieldtype submit 
 	   :initform "New Password"
 	   :accessor submit))
+  (:csrf-p . nil)
   (:template . ("stw-forms" "test/templates/change-password-form.html")))
 
 (define-test sanity
@@ -52,13 +53,14 @@
   (with-active-layers (form-layer)
     (of-type form-class (find-class 'login))
     (of-type djula::compiled-template (slot-value (find-class 'login) 'stw.form::template))
-    (is string= "A CSRF token" (csrf (find-class 'login)))
+    (true (csrf-p (find-class 'login)))
     (false (novalidate (find-class 'login)))))
 
 
 (define-test render1
   :parent all-tests
   (with-active-layers (form-layer)
+    (fail (render-template (make-instance 'login :submit "Log In")) 'rendering-error)
     (is string-equal "<form method='get' action='/login' name='login'>
    <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='A CSRF token' />
    <div id='name-text-container' class='form-field-container'>
@@ -75,8 +77,9 @@
       <input class='form-field input-field' type='submit' name='submit' value='Log In' />
    </div>
 </form>"
-	(render-template (make-instance 'login :submit "Log In"))
-	(is string-equal "<form method='get' action='/login' name='login'>
+	(let ((instance (make-instance 'login :submit "Log In")))
+	  (render-template instance nil (default-arguments instance "A CSRF token"))))
+    (is string-equal "<form method='get' action='/login' name='login'>
    <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='A CSRF token' />
    <div id='name-text-container' class='form-field-container'>
       <input class='form-field input-field' type='text' name='name' required value='Liam' />
@@ -92,7 +95,8 @@
       <input class='form-field input-field' type='submit' name='submit' value='Log In' />
    </div>
 </form>"
-	    (render-template (make-instance 'login :submit "Log In" :name "Liam" :password "12345678"))))))
+	(let ((instance (make-instance 'login :submit "Log In" :name "Liam" :password "12345678")))
+	  (render-template instance nil (default-arguments instance "A CSRF token"))))))
 
 
 (define-form account ()
@@ -122,7 +126,7 @@
    (submit :fieldtype submit 
 	   :initform "Create Account"
 	   :accessor submit))
-  (:csrf . "csrf-token")
+  (:csrf-p . nil)
   (:template . ("stw-forms" "test/templates/account-form.html")))
 
 (define-layered-method retrieve-options :in form-layer ((class stw.form::form-class) (slot-name (eql 'privileges)) &key value)
@@ -136,7 +140,6 @@
   :parent all-tests
   (with-active-layers (form-layer)
     (is string-equal "<form name='account'>
-   <input class='form-field input-field hidden' type='hidden' name='csrf-token' value='csrf-token' />
    <div id='name-text-container' class='form-field-container'>
       <label for='name-text'>Name
       </label>
@@ -218,6 +221,7 @@
    (submit :fieldtype submit 
 	   :initform "Submit"
 	   :accessor submit))
+  (:csrf-p . nil)
   (:template . ("stw-forms" "test/templates/group-membership-form.html")))
 
 (define-layered-method retrieve-options :in form-layer ((class stw.form::form-class) (slot-name (eql 'groups)) &key value)
@@ -276,6 +280,7 @@
    (submit :fieldtype submit 
 	   :initform "Submit"
 	   :accessor submit))
+  (:csrf-p . nil)
   (:template . ("stw-forms" "test/templates/group-status-form.html")))
 
 
@@ -359,22 +364,19 @@
   :parent all-tests
   (with-active-layers (form-layer)
     ;; sanity
-    (true (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (email . "foo@bar.baz") (profile . "bar") (password . "foobarbaz")) :csrf-token "csrf-token"))
+    (true (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (email . "foo@bar.baz") (profile . "bar") (password . "foobarbaz"))))
     ;; required email
-    (fail (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (profile . "bar") (password . "foobarbaz")) :csrf-token "csrf-token"))
+    (fail (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (profile . "bar") (password . "foobarbaz"))))
 
     ;; invalid email
-    (fail (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (email . "foobar.baz") (profile . "bar") (password . "foobarbaz")) :csrf-token "csrf-token"))
-
-    ;;fail on csrf token absence
-    (fail (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (email . "foo@bar.baz") (profile . "bar") (password . "foobarbaz"))))
-    ;;fail on invalid csrf token
-    (fail (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (email . "foo@bar.baz") (profile . "bar") (password . "foobarbaz")) :csrf-token "invalid-csrf-token"))
+    (fail (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (email . "foobar.baz") (profile . "bar") (password . "foobarbaz"))))
 
     ;; required name
     (fail (validate-form (find-class 'account) '((privileges . ("admin")) (profile . "bar") (email . "foo@bar.baz") (password . "foobarbaz")) :csrf-token "csrf-token"))
     ;; required password
+
     (fail (validate-form (find-class 'account) '((privileges . ("admin")) (name . "foo") (email . "foo@bar.baz") (profile . "bar")) :csrf-token "csrf-token"))
+
     ;; invalid option "topsecret"
     (fail (validate-form (find-class 'account) '((privileges . ("topsecret")) (name . "foo") (email . "foo@bar.baz") (profile . "bar") (password . "foobarbaz")) :csrf-token "csrf-token"))
 
@@ -429,3 +431,19 @@
 
     ;; new password has no numbers
     (fail (validate-form (find-class 'new-password) '((password . "1234567") (new-password . "a$BCdef") (repeat-password . "a$BCdef"))))))
+
+
+(define-test validate-csrf
+  :parent all-tests
+  (with-active-layers (form-layer)
+    (let ((values '((submit . "Log In") (name . "Liam") (password  . "12345678"))))
+      ;; no valid csrf token
+      (fail (validate-form (find-class 'login) values))
+      ;; only server side  csrf token
+      (fail (validate-form (find-class 'login) values :csrf-token-server "test token"))
+      ;; only client side  csrf token
+      (fail (validate-form (find-class 'login) values :csrf-token-client "test token"))
+      ;; non-matching tokens
+      (fail (validate-form (find-class 'login) values :csrf-token-server "test token" :csrf-token-client "wrong token"))
+      ;; matching csrf-tokens
+      (true (validate-form (find-class 'login) values :csrf-token-server "test token" :csrf-token-client "test token")))))

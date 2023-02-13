@@ -46,3 +46,12 @@
 (defun the-message (c)
   (apply #'format nil (simple-condition-format-control c)
 	 (simple-condition-format-arguments c)))
+
+
+(define-condition rendering-error (simple-error)
+  ())
+
+(defun rendering-error (format-control &rest args)
+  (error 'rendering-error
+	 :format-control format-control
+	 :format-arguments args))

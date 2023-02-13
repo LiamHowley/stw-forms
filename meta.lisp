@@ -2,7 +2,7 @@
 
 
 (defvar *base-form-class-initargs*
-  `(:extends :csrf :novalidate :action :method :enctype :autocomplete :rel :accept-charset :name))
+  `(:extends :csrf-p :novalidate :action :method :enctype :autocomplete :rel :accept-charset :name))
 
 (defvar *form-slot-definition-initargs*
   `(:input-type :input-name :value :list :step :options :min :max :size :formnovalidate :required :maxlength :minlength :pattern :accept :file :multiple :readonly :disabled :accept :alt :autocomplete :autofocus :capture :checked :dirname :form :formaction :formenctype :formmethod :formnovalidate :formtarget :pattern :placeholder :usemap :width :height :for :label :label-placement :use-numbers :special-chars :capitalize))
@@ -18,7 +18,7 @@
 
 (define-layered-class base-form-class
   :in form-layer (base-template-class)
-  ((csrf :initarg :csrf :initform nil :accessor csrf)
+  ((csrf-p :initarg :csrf-p :initform t :reader csrf-p)
    (extends :initarg :extends :initform nil :accessor extends)
    (novalidate :initarg :novalidate :initform nil :reader novalidate)
    (form-attributes
@@ -377,8 +377,8 @@
 				for fields = (slot-value slot 'fields)
 				when fields collect fields)))
 	;; add csrf token
-	(awhen (slot-value class 'csrf)
-	  (push (make-instance 'input :type "hidden" :name "csrf-token" :class '("hidden") :value self) child-nodes))
+	(when (slot-value class 'csrf-p)
+	  (push (make-instance 'input :type "hidden" :name "csrf-token" :class '("hidden") :value "{{ csrf-token }}") child-nodes))
 
 	;; add child-nodes
 	(setf (slot-value form 'child-nodes) child-nodes)
