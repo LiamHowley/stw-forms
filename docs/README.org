@@ -290,7 +290,7 @@ This should now render the form complete with values and errors:
 
 ** CL-COMP and CONTEXTL
 
-STW-FORM uses CL-COMP, a thin wrapper around [[https://github.com/pcostanza/contextl][CONTEXTL]]. For further information about the protocol STW-FORM uses to define table classes or interface nodes please see the documentation for [[https://github.com/liamhowley/cl-comp][CL-COMP]]. With that said, the section on class definition initialization is repeated here:
+STW-FORM uses CL-COMP, a thin wrapper around [[https://github.com/pcostanza/contextl][CONTEXTL]]. For further information about the protocol STW-FORM uses to define please see the documentation for [[https://github.com/liamhowley/cl-comp][CL-COMP]]. With that said, the section on class definition initialization is repeated here:
 
 #+BEGIN_QUOTE 
  Initializing the class definition - important!
