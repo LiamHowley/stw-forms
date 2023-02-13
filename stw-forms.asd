@@ -1,5 +1,6 @@
 (defsystem "stw-forms"
   :author "Liam Howley <liam.howley@thespanningtreeweb.ie>"
+  :description "Context oriented CLOS to html form map, with automatic template generation, rendering and validation."
   :license "MIT"
   :depends-on ("stw-templates"
 	       "stw-xml-parse"
