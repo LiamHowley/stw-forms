@@ -128,13 +128,6 @@
        (:metaclass form-class))))
 
 
-(defun string->symbol (string)
-  (intern (string-upcase string) 'stw.form))
-
-(defun keyword->symbol (key)
-  (declare (inline string->symbol))
-  (string->symbol (symbol-name key)))
-
 (defun multiple-valuep (slot)
   "Does the slot have a specified type of array, list or cons?"
   (member (slot-definition-type slot) `(array list cons)))

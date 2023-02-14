@@ -10,7 +10,8 @@
    :ensure-list
    :ensure-string
    :get-float
-   :explode-string)
+   :explode-string
+   :keyword->symbol)
   (:import-from
    :closer-mop
    :slot-definition-name
