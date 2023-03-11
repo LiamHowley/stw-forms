@@ -11,7 +11,8 @@
    :ensure-string
    :get-float
    :explode-string
-   :keyword->symbol)
+   :keyword->symbol
+   :dotted-p)
   (:import-from
    :closer-mop
    :slot-definition-name
