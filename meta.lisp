@@ -353,34 +353,48 @@
 
 
 (define-layered-method initialize-in-context
-  :in form-layer ((class base-form-class) &rest rest &key name template extends &allow-other-keys)
-  (let ((rest* (loop
-		 for (key value) on rest by #'cddr
-		 when (member key (cddr *base-form-class-initargs*) :test #'eq)
-		   collect key
-		   and collect (ensure-string value))))
-    (awhen (apply #'asdf:system-relative-pathname template)
-      (let* ((form (apply #'make-instance 'form
-			  :name (format nil "~(~a~)" (if name name (class-name class)))
-			  rest*))
-	     (slots (map-filtered-slots class
-					#'(lambda (slot)
-					    (typep slot 'form-slot-definition))))
-	     (child-nodes (loop for slot in slots
-				for fields = (slot-value slot 'fields)
-				when fields collect fields)))
-	;; add csrf token
-	(when (slot-value class 'csrf-p)
-	  (push (make-instance 'input :type "hidden" :name "csrf-token" :class '("hidden") :value "{{ csrf-token }}") child-nodes))
+  :in form-layer ((class base-form-class) &rest rest &key name template extends method &allow-other-keys)
+  (flet ((non-compliant-method-p ()
+	   (or (string-equal method% "put")
+	       (string-equal method% "delete"))))
+    (let ((method* (when (non-compliant-method-p)
+		     method))
+	  (rest* (loop
+		   for (key value) on rest by #'cddr
+		   when (member key (cddr *base-form-class-initargs*) :test #'eq)
+		     collect key
+		     and collect (ensure-string value))))
+      (when (non-compliant-method-p)
+	(setf method "post"))
+      (awhen (apply #'asdf:system-relative-pathname template)
+	(let* ((form (apply #'make-instance 'form
+			    :name (format nil "~(~a~)" (if name name (class-name class)))
+			    :method method
+			    rest*))
+	       (slots (map-filtered-slots class
+					  #'(lambda (slot)
+					      (typep slot 'form-slot-definition))))
+	       (child-nodes (loop for slot in slots
+				  for fields = (slot-value slot 'fields)
+				  when fields collect fields)))
 
-	;; add child-nodes
-	(setf (slot-value form 'child-nodes) child-nodes)
-	(with-open-file (stream self :direction :output :if-does-not-exist :create :if-exists :supersede)
-	  (let ((*indent* 0))
-	    (when extends
-	      (format stream "{% extends ~a %}" extends))
-	    (serialize-object form stream *indent* t))))
-      (let ((template (slot-value class 'template)))
-	(when (consp template)
-	  (setf (slot-value class 'template) self)
-	  (compile-template class))))))
+	  ;; add hidden http verb as workaround
+	  ;; for html form method restrictions.
+	  (when method*
+	    (push (make-instance 'input :type "hidden" :name "method" :class '("hidden") :value method*) child-nodes))
+
+	  ;; add csrf token
+	  (when (slot-value class 'csrf-p)
+	    (push (make-instance 'input :type "hidden" :name "csrf-token" :class '("hidden") :value "{{ csrf-token }}") child-nodes))
+
+	  ;; add child-nodes
+	  (setf (slot-value form 'child-nodes) child-nodes)
+	  (with-open-file (stream self :direction :output :if-does-not-exist :create :if-exists :supersede)
+	    (let ((*indent* 0))
+	      (when extends
+		(format stream "{% extends ~a %}" extends))
+	      (serialize-object form stream *indent* t))))
+	(let ((template (slot-value class 'template)))
+	  (when (consp template)
+	    (setf (slot-value class 'template) self)
+	    (compile-template class)))))))

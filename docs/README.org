@@ -210,6 +210,16 @@ As the default value of CSRF-P is T, the above form requires a csrf token to ren
 
 #+END_SRC
 
+*** Form Method
+
+HTML forms accept only "GET" and "POST" http methods. To support RESTful development, a hidden field is added to a form when the method is specified as neither "GET" nor "POST". If, for example, a form method is specified as "PUT" then the method defaults to "POST" and the "PUT" method is referenced in a hidden field, like so:
+
+#+BEGIN_SRC html
+
+   <input class='form-field input-field hidden' type='hidden' name='method' value='put' />
+
+#+END_SRC
+
 ** Validating User Data
 
 The above is a trivial example and skips the step of saving the csrf-token to some user-specific state, A.K.A session cookie. This is required for validating.
