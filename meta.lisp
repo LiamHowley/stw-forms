@@ -355,8 +355,8 @@
 (define-layered-method initialize-in-context
   :in form-layer ((class base-form-class) &rest rest &key name template extends method &allow-other-keys)
   (flet ((non-compliant-method-p ()
-	   (or (string-equal method% "put")
-	       (string-equal method% "delete"))))
+	   (or (string-equal method "put")
+	       (string-equal method "delete"))))
     (let ((method* (when (non-compliant-method-p)
 		     method))
 	  (rest* (loop
@@ -365,11 +365,10 @@
 		     collect key
 		     and collect (ensure-string value))))
       (when (non-compliant-method-p)
-	(setf method "post"))
+	(setf (getf rest* :method) "post"))
       (awhen (apply #'asdf:system-relative-pathname template)
 	(let* ((form (apply #'make-instance 'form
 			    :name (format nil "~(~a~)" (if name name (class-name class)))
-			    :method method
 			    rest*))
 	       (slots (map-filtered-slots class
 					  #'(lambda (slot)
