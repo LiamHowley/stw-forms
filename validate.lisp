@@ -94,7 +94,7 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
       for field = (car fields)
       for value = (unless (typep field 'checkbox)
 		    (awhen (assoc fieldname values :test #'string-equal)
-		      (if (dottedp self) (cdr self) (cadr self))))
+		      (if (dotted-p self) (cdr self) (cadr self))))
       do (with-slots (parent-field) field
 	   (let ((initarg (car (slot-definition-initargs parent-field))))
 	     (setf (getf field-values initarg) value)
