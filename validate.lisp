@@ -94,7 +94,10 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
       for field = (car fields)
       for value = (unless (typep field 'checkbox)
 		    (awhen (assoc fieldname values :test #'string-equal)
-		      (if (dotted-p self) (cdr self) (cadr self))))
+		      (if (or (atom (cdr self))
+			      (> (length self) 1))
+			  (cdr self)
+			  (cadr self))))
       do (with-slots (parent-field) field
 	   (let ((initarg (car (slot-definition-initargs parent-field))))
 	     (setf (getf field-values initarg) value)
@@ -385,7 +388,9 @@ STORED-FIELDS for subsequent calls to VALIDATE-FIELD"))
 						    (or (typep node 'radio)
 							(typep node 'checkbox)))))))
     (loop
-      for (a . b) in value
+      for item in value
+      for a = (car item)
+      for b = (if (dotted-p item) (cdr item) (cadr item))
       when (and (consp b)
 		(eq fieldtype 'radio))
 	do (validate-field-error "Multiple values returned for ~s. Only one expected. Invalid form data." a)
