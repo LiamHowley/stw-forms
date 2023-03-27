@@ -49,9 +49,4 @@
 
 
 (defun generate-csrf-token ()
-  (qbase64:encode-bytes
-   (make-array '60
-	       :initial-contents
-	       (loop
-		 for i from 1 to 60
-		 collect (random 9)))))
+  (lack.util:generate-random-id))

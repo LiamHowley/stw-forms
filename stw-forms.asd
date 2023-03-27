@@ -14,7 +14,7 @@
 	       "local-time"
 	       "trivial-mimes"
 	       "flexi-streams"
-	       "qbase64")
+	       "lack-util")
   :serial t
   :components ((:file "package")
 	       (:file "field-definitions")
